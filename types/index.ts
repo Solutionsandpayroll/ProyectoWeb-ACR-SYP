@@ -2,7 +2,7 @@
 // Domain Types – Solutions & Payroll / Sistema ACR
 // ──────────────────────────────────────────────────
 
-export type AcrStatus = "Abierta" | "Cerrada";
+export type AcrStatus = "Abierta" | "Cerrada" | "Parcial";
 
 export type UserRole = "admin" | "usuario";
 
@@ -13,16 +13,21 @@ export interface User {
   role: UserRole;
 }
 
+/** Shape returned by GET /api/acr */
 export interface AcrRecord {
-  id: string;
-  title: string;
-  description: string;
-  responsible: string;
-  amount: number;
-  status: AcrStatus;
-  date: string; // ISO string
-  createdAt: string;
-  updatedAt: string;
+  id: number;
+  consecutivo: string;
+  fuente: string;
+  proceso: string;
+  cliente: string | null;
+  fecha_apertura: string;
+  fecha_limite: string | null;
+  tipo_accion: string;
+  evaluacion_riesgo: string | null;
+  descripcion: string | null;
+  estado: AcrStatus;
+  created_at: string;
+  costo_total: number;
 }
 
 export interface DashboardStats {
@@ -32,7 +37,7 @@ export interface DashboardStats {
   totalEconomicImpact: number;
 }
 
-// API response wrappers (ready for future Neon integration)
+// API response wrappers
 export interface ApiResponse<T> {
   data: T | null;
   error: string | null;

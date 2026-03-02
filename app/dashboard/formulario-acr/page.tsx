@@ -46,40 +46,46 @@ const fmtCurrency = (n: number) =>
 
 // ─── Option Lists ───────────────────────────────────────────────────────────────
 const FUENTES = [
-  "Auditoría interna",
-  "Auditoría externa",
-  "Queja del cliente",
+  "Hallazgos (no conformidades u oportunidades de mejora) encontrados en las auditorías internas o externas de calidad y SST",
+  "Identificación de Riesgos",
   "Revisión por la dirección",
-  "Hallazgo de proceso",
-  "Indicadores de gestión",
+  "Quejas presentadas por los clientes",
   "Salidas no conformes",
-  "Análisis de datos",
-  "Oportunidad de mejora",
+  "Reuniones con el cliente",
+  "Revisión del proceso",
+  "Evaluaciones de desempeño",
+  "Resultados de los indicadores",
 ];
 
 const PROCESOS = [
-  "Gestión de nómina",
-  "Administración de personal",
-  "Gestión comercial",
-  "Tesorería",
-  "Gestión Humana",
-  "Employer of Record (EoR)",
-  "Back office sucursales",
-  "Tecnología y automatización",
-  "Comunicación y marketing",
-  "Administración y finanzas",
-  "Dirección general",
+  "Direccionamiento Estratégico",
+  "Gestión Comercial y de Mercadeo",
+  "Administración de Nómina",
+  "Administración de Personal",
+  "Selección de Personal",
+  "Gestión de Servicio al Cliente",
+  "Gestión Administrativa y Financiera",
+  "Gestión de Talento Humano",
+  "Employer of Record",
+  "Gestión Integral",
+  "Outsourcing de tesorería",
 ];
 
 const TRATAMIENTOS = [
-  "Reproceso",
-  "Reclasificación",
-  "Corrección",
-  "Devolución al proveedor",
-  "Rechazo / Descarte",
+  "No Aplica",
+  "Concesión: Autorización para utilizar o liberar una salida que No es conforme con los requisitos especificados",
+  "Liberación: Autorización para proseguir con la siguiente etapa de un proceso",
+  "Corrección: Acción tomada para eliminar una No Conformidad detectada",
+  "Anulación: Acción tomada para declarar inválido la emisión de un documento, factura o similar",
+  "Otros",
 ];
 
-const EVALUACION_RIESGO = ["Bajo", "Medio", "Alto", "Crítico"];
+const EVALUACION_RIESGO = [
+  "Riesgo leve - no afecto al cliente - no afecta el contrato (Es poco factible que ocurra)",
+  "Riesgo Moderado - insatisfacción del cliente - no afecta el contrato",
+  "Riesgo intolerable - afecto la continuidad del contrato",
+  "No Aplica",
+];
 
 const ESTADOS_ACTIVIDAD = ["Abierta", "Cerrada", "Parcial"];
 
@@ -94,9 +100,7 @@ interface ResponsableCorreccion {
 
 interface ActividadCorreccion {
   actividad: string;
-  recursosFinancieros: string;
-  recursosTecnologicos: string;
-  recursosHumanos: string;
+  recursos: string[];
   responsables: ResponsableCorreccion[];
 }
 
@@ -131,9 +135,7 @@ const newResponsableCorreccion = (): ResponsableCorreccion => ({
 
 const newActividadCorreccion = (): ActividadCorreccion => ({
   actividad: "",
-  recursosFinancieros: "",
-  recursosTecnologicos: "",
-  recursosHumanos: "",
+  recursos: [],
   responsables: [newResponsableCorreccion()],
 });
 
@@ -258,8 +260,35 @@ export default function FormularioAcrPage() {
     otrosCostos: "",
   });
 
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [submitted, setSubmitted] = useState(false);
+  type ModalState = 'idle' | 'loading' | 'success' | 'error';
+  const [modalState,       setModalState]       = useState<ModalState>('idle');
+  const [savedConsecutivo, setSavedConsecutivo] = useState('');
+  const [modalError,       setModalError]       = useState<string | null>(null);
+
+  const isSubmitting = modalState === 'loading';
+
+  // ── Reset all form fields to initial state ──
+  const resetForm = () => {
+    const newConsecutivo = `ACR-${Date.now().toString().slice(-6)}`;
+    setInfo({
+      consecutivo:      newConsecutivo,
+      fuente:           '',
+      proceso:          '',
+      cliente:          '',
+      fechaIncidente:   '',
+      fechaRegistro:    new Date().toISOString().split('T')[0],
+      tipoAccion:       '',
+      tratamiento:      '',
+      evaluacionRiesgo: '',
+      descripcion:      '',
+    });
+    setCorreccionActs([newActividadCorreccion(), newActividadCorreccion(), newActividadCorreccion()]);
+    setCausasAnalisis('');
+    setCausasInmediatas(['', '']);
+    setCausasRaiz(['', '']);
+    setPlanActs([newActividadPlan()]);
+    setCostos({ perdidaIngresos: '', multasSanciones: '', otrosCostosInternos: '', descuentosCliente: '', otrosCostos: '' });
+  };
 
   // ── Calculated totals ──
   const totalCorreccion = useMemo(
@@ -449,11 +478,108 @@ export default function FormularioAcrPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsSubmitting(true);
-    await new Promise((r) => setTimeout(r, 900));
-    setIsSubmitting(false);
-    setSubmitted(true);
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    setModalState('loading');
+    setModalError(null);
+
+    try {
+      // ── Build payload ────────────────────────────────────────────────────
+      const payload = {
+        // Section 1
+        consecutivo:      info.consecutivo,
+        fuente:           info.fuente,
+        proceso:          info.proceso,
+        cliente:          info.cliente || null,
+        fechaApertura:    info.fechaIncidente,
+        tipoAccion:       info.tipoAccion,
+        tratamiento:      info.tratamiento || null,
+        evaluacionRiesgo: info.evaluacionRiesgo || null,
+        descripcion:      info.descripcion || null,
+
+        // Section 2
+        actividadesCorreccion: correccionActs
+          .filter((a) => a.actividad.trim())
+          .map((a) => ({
+            actividad:  a.actividad,
+            recursos:   a.recursos,
+            costoTotal: a.responsables.reduce(
+              (s, r) => s + calcCosto(r.cargo, Number(r.horas) || 0), 0
+            ),
+            responsables: a.responsables.map((r) => ({
+              nombre:      r.nombre      || null,
+              cargo:       r.cargo       || null,
+              horas:       Number(r.horas) || 0,
+              fechaInicio: r.fechaInicio || null,
+              fechaFin:    r.fechaFin    || null,
+              costo:       calcCosto(r.cargo, Number(r.horas) || 0),
+            })),
+          })),
+
+        // Section 3
+        analisisCausas:  causasAnalisis || null,
+        causasInmediatas: causasInmediatas.filter((c) => c.trim()),
+        causasRaiz:       causasRaiz.filter((c) => c.trim()),
+
+        // Section 4
+        actividadesPlan: planActs
+          .filter((a) => a.descripcion.trim())
+          .map((a) => ({
+            descripcion:     a.descripcion,
+            causasAsociadas: a.causasAsociadas,
+            costoTotal: a.responsables.reduce(
+              (s, r) =>
+                s +
+                calcCosto(r.cargoEjecucion,    Number(r.horasEjecucion)    || 0) +
+                calcCosto(r.cargoSeguimiento,  Number(r.horasSeguimiento)  || 0),
+              0
+            ),
+            responsables: a.responsables.map((r) => ({
+              nombreEjecucion:     r.nombreEjecucion     || null,
+              cargoEjecucion:      r.cargoEjecucion      || null,
+              horasEjecucion:      Number(r.horasEjecucion)   || 0,
+              fechaInicioEjecucion: r.fechaInicioEjecucion || null,
+              fechaFinEjecucion:   r.fechaFinEjecucion    || null,
+              costoEjecucion:      calcCosto(r.cargoEjecucion, Number(r.horasEjecucion) || 0),
+              nombreSeguimiento:   r.nombreSeguimiento    || null,
+              cargoSeguimiento:    r.cargoSeguimiento     || null,
+              horasSeguimiento:    Number(r.horasSeguimiento) || 0,
+              fechaSeguimiento:    r.fechaSeguimiento     || null,
+              estadoSeguimiento:   r.estadoSeguimiento    || 'Abierta',
+              costoSeguimiento:    calcCosto(r.cargoSeguimiento, Number(r.horasSeguimiento) || 0),
+            })),
+          })),
+
+        // Section 5
+        costosAsociados: {
+          costoCorreccion:      totalCorreccion,
+          costoPlanAccion:      totalPlanEjecucion,
+          costoPlanSeguimiento: totalPlanSeguimiento,
+          perdidaIngresos:      Number(costos.perdidaIngresos)     || 0,
+          multasSanciones:      Number(costos.multasSanciones)     || 0,
+          otrosCostosInternos:  Number(costos.otrosCostosInternos) || 0,
+          descuentosCliente:    Number(costos.descuentosCliente)   || 0,
+          otrosCostos:          Number(costos.otrosCostos)         || 0,
+        },
+      };
+
+      const res = await fetch('/api/acr', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify(payload),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error ?? 'Error al guardar el registro');
+      }
+
+      setSavedConsecutivo(payload.consecutivo);
+      setModalState('success');
+      resetForm();
+    } catch (err) {
+      setModalError(err instanceof Error ? err.message : 'Error inesperado al guardar');
+      setModalState('error');
+    }
   };
 
   // ── Render ──────────────────────────────────────────────────────────────────
@@ -466,34 +592,7 @@ export default function FormularioAcrPage() {
 
       <main className="flex-1 p-6">
         <div className="max-w-6xl mx-auto">
-          {/* Success banner */}
-          {submitted && (
-            <div className="mb-6 flex items-center gap-3 bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-xl px-5 py-3.5">
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                className="h-5 w-5 shrink-0"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
-                />
-              </svg>
-              <p className="text-sm font-medium">
-                ACR registrada correctamente.
-              </p>
-              <button
-                onClick={() => setSubmitted(false)}
-                className="ml-auto text-emerald-500 hover:text-emerald-700"
-              >
-                ✕
-              </button>
-            </div>
-          )}
+          {/* Modals rendered via portal-like overlay */}
 
           <form onSubmit={handleSubmit} className="space-y-6">
 
@@ -673,33 +772,42 @@ export default function FormularioAcrPage() {
                       </div>
                       <div className="space-y-2">
                         <label className={labelCls}>Recursos</label>
-                        <input
-                          className={inputCls}
-                          type="text"
-                          placeholder="💰 Financieros"
-                          value={act.recursosFinancieros}
-                          onChange={(e) =>
-                            updateActCorr(aIdx, "recursosFinancieros", e.target.value)
-                          }
-                        />
-                        <input
-                          className={inputCls}
-                          type="text"
-                          placeholder="💻 Tecnológicos"
-                          value={act.recursosTecnologicos}
-                          onChange={(e) =>
-                            updateActCorr(aIdx, "recursosTecnologicos", e.target.value)
-                          }
-                        />
-                        <input
-                          className={inputCls}
-                          type="text"
-                          placeholder="👥 Humanos"
-                          value={act.recursosHumanos}
-                          onChange={(e) =>
-                            updateActCorr(aIdx, "recursosHumanos", e.target.value)
-                          }
-                        />
+                        <div className="flex flex-col gap-2 pt-1">
+                          {[
+                            { value: "Financieros", icon: "💰" },
+                            { value: "Tecnológicos", icon: "💻" },
+                            { value: "Humanos", icon: "👥" },
+                          ].map(({ value, icon }) => {
+                            const checked = act.recursos.includes(value);
+                            return (
+                              <label
+                                key={value}
+                                className={`flex items-center gap-2.5 px-3 py-2 rounded-lg border cursor-pointer transition-all ${
+                                  checked
+                                    ? "border-blue-500 bg-blue-50 text-blue-700"
+                                    : "border-slate-200 bg-white text-slate-600 hover:border-slate-300"
+                                }`}
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={checked}
+                                  onChange={() => {
+                                    const next = checked
+                                      ? act.recursos.filter((r) => r !== value)
+                                      : [...act.recursos, value];
+                                    setCorreccionActs((prev) =>
+                                      prev.map((a, i) =>
+                                        i === aIdx ? { ...a, recursos: next } : a
+                                      )
+                                    );
+                                  }}
+                                  className="accent-blue-600 w-4 h-4"
+                                />
+                                <span className="text-sm font-medium">{icon} {value}</span>
+                              </label>
+                            );
+                          })}
+                        </div>
                       </div>
                     </div>
 
@@ -1439,6 +1547,95 @@ export default function FormularioAcrPage() {
           </form>
         </div>
       </main>
+
+      {/* ══ LOADING MODAL ══ */}
+      {modalState === 'loading' && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl shadow-2xl px-12 py-10 flex flex-col items-center gap-5 min-w-70">
+            <div className="relative w-16 h-16">
+              <svg className="w-16 h-16 animate-spin text-blue-600" viewBox="0 0 24 24" fill="none">
+                <circle className="opacity-20" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" />
+                <path className="opacity-90" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
+              </svg>
+            </div>
+            <div className="text-center">
+              <p className="text-slate-800 font-semibold text-base">Guardando ACR...</p>
+              <p className="text-slate-400 text-sm mt-1">Por favor espera un momento</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ══ SUCCESS MODAL ══ */}
+      {modalState === 'success' && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+          <div
+            className="bg-white rounded-2xl shadow-2xl px-10 py-10 flex flex-col items-center gap-5 min-w-[320px] max-w-sm w-full"
+            style={{ animation: 'modalIn 0.3s cubic-bezier(0.34,1.56,0.64,1) both' }}
+          >
+            {/* Checkmark circle */}
+            <div className="w-20 h-20 rounded-full bg-emerald-100 flex items-center justify-center">
+              <svg className="w-10 h-10 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+              </svg>
+            </div>
+
+            <div className="text-center">
+              <h3 className="text-slate-800 font-bold text-lg">¡ACR Guardada!</h3>
+              <p className="text-slate-500 text-sm mt-1">El registro fue creado exitosamente.</p>
+              <div className="mt-3 inline-flex items-center gap-2 bg-slate-100 rounded-lg px-4 py-2">
+                <span className="text-xs text-slate-500 font-medium">Consecutivo</span>
+                <span className="text-sm font-bold text-blue-700 tracking-wide">{savedConsecutivo}</span>
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-2 w-full pt-1">
+              <button
+                onClick={() => { setModalState('idle'); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+                className="w-full py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold transition"
+              >
+                Crear otro ACR
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ══ ERROR MODAL ══ */}
+      {modalState === 'error' && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+          <div
+            className="bg-white rounded-2xl shadow-2xl px-10 py-10 flex flex-col items-center gap-5 min-w-[320px] max-w-sm w-full"
+            style={{ animation: 'modalIn 0.3s cubic-bezier(0.34,1.56,0.64,1) both' }}
+          >
+            {/* X circle */}
+            <div className="w-20 h-20 rounded-full bg-red-100 flex items-center justify-center">
+              <svg className="w-10 h-10 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </div>
+
+            <div className="text-center">
+              <h3 className="text-slate-800 font-bold text-lg">Error al guardar</h3>
+              <p className="text-slate-500 text-sm mt-1">{modalError}</p>
+            </div>
+
+            <button
+              onClick={() => setModalState('idle')}
+              className="w-full py-2.5 rounded-xl bg-slate-800 hover:bg-slate-900 text-white text-sm font-semibold transition"
+            >
+              Cerrar y revisar
+            </button>
+          </div>
+        </div>
+      )}
+
+      <style>{`
+        @keyframes modalIn {
+          from { opacity: 0; transform: scale(0.85); }
+          to   { opacity: 1; transform: scale(1); }
+        }
+      `}</style>
     </div>
   );
 }

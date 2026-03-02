@@ -9,7 +9,7 @@ export default function DashboardLayout({
     <div className="flex min-h-screen bg-slate-100">
       <Sidebar />
       {/* Main content — offset by sidebar width */}
-      <div className="flex-1 ml-64 flex flex-col min-h-screen">
+      <div className="flex-1 ml-72 flex flex-col min-h-screen">
         {children}
       </div>
     </div>

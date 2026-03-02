@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import Image from "next/image";
 
 const navItems = [
   {
@@ -51,15 +52,17 @@ export default function Sidebar() {
   };
 
   return (
-    <aside className="fixed inset-y-0 left-0 w-64 bg-slate-900 flex flex-col z-10 shadow-2xl">
+    <aside className="fixed inset-y-0 left-0 w-72 bg-slate-900 flex flex-col z-10 shadow-2xl">
       {/* Brand */}
-      <div className="flex flex-col items-start px-6 py-6 border-b border-slate-700/50">
-        <span className="text-xs font-semibold text-blue-400 uppercase tracking-widest mb-1">
-          Sistema Interno
-        </span>
-        <span className="text-white font-bold text-base leading-tight">
-          Solutions &amp; Payroll
-        </span>
+      <div className="flex items-center justify-center px-1 py-1 border-b border-slate-700/50">
+        <Image
+          src="/Titulo_empresa_v2.png"
+          alt="Solutions & Payroll"
+          width={220}
+          height={80}
+          className="object-contain w-full h-auto"
+          priority
+        />
       </div>
 
       {/* Navigation */}
