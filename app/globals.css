@@ -1,5 +1,61 @@
 @import "tailwindcss";
 
+@media print {
+  /* Force background colors and images to print */
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    color-adjust: exact !important;
+  }
+
+  /* Hide sidebar, toolbar buttons, back button */
+  .no-print {
+    display: none !important;
+  }
+
+  /* Remove sidebar offset and layout constraints */
+  .ml-72 {
+    margin-left: 0 !important;
+  }
+  main {
+    max-width: 100% !important;
+    padding: 0 !important;
+  }
+
+  /* White background */
+  body {
+    background: white !important;
+  }
+
+  /* Allow document to expand to full height — remove overflow clip */
+  #acr-document {
+    border: none !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    overflow: visible !important;
+    height: auto !important;
+  }
+
+  /* Remove height constraints from wrappers */
+  .flex-col.flex-1,
+  .min-h-screen {
+    min-height: unset !important;
+    height: auto !important;
+  }
+
+  /* Avoid awkward page breaks inside section cards */
+  .border.rounded-lg,
+  .border.rounded-xl {
+    break-inside: avoid;
+  }
+
+  /* Page margins */
+  @page {
+    margin: 1.5cm;
+    size: A4;
+  }
+}
+
 :root {
   --background: #f1f5f9;
   --foreground: #0f172a;

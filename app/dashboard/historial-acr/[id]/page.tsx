@@ -1,0 +1,1197 @@
+﻿"use client";
+
+import { useState, useEffect, useCallback, useMemo } from "react";
+import { useParams, useRouter } from "next/navigation";
+import Image from "next/image";
+import Header from "@/components/Header";
+
+// â”€â”€â”€ Salary Table â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+const CARGOS: { cargo: string; salario: number }[] = [
+  { cargo: "Director General",                        salario: 19217000 },
+  { cargo: "Director de operaciones",                 salario: 19217000 },
+  { cargo: "Gerente de Nomina y ADP",                 salario: 8000000 },
+  { cargo: "Gerente Comercial",                       salario: 8000000 },
+  { cargo: "Lider de Administración de personal",     salario: 6158000 },
+  { cargo: "Lider de Gestión Humana",                 salario: 6158000 },
+  { cargo: "Lider de Employer of Record Colombia",    salario: 6158000 },
+  { cargo: "Lider Outsourcing de Tesoreria",          salario: 6158000 },
+  { cargo: "Profesional SGI",                         salario: 5119000 },
+  { cargo: "Profesional de Nomina",                   salario: 5119000 },
+  { cargo: "Profesional Back office Sucursales",      salario: 5119000 },
+  { cargo: "Analista Administrativo y financiero",    salario: 4183000 },
+  { cargo: "Analista de Nómina",                      salario: 4183000 },
+  { cargo: "Analista Administración de personal",     salario: 4183000 },
+  { cargo: "Analista de EoR",                         salario: 4183000 },
+  { cargo: "Tecnico de Automatización",               salario: 4183000 },
+  { cargo: "Asistente Administrativo y Financiero",   salario: 3335000 },
+  { cargo: "Asistente Comercial",                     salario: 3335000 },
+  { cargo: "Asistente de Comunicación y Marketing",   salario: 3335000 },
+  { cargo: "Asistente de Nómina",                     salario: 3335000 },
+  { cargo: "Asistente Administración de Personal",    salario: 3335000 },
+  { cargo: "Asistente de EoR",                        salario: 3335000 },
+  { cargo: "Asistente de tesorería",                  salario: 3335000 },
+  { cargo: "Auxiliar de nomina",                      salario: 2627000 },
+];
+
+const calcCosto = (cargo: string, horas: number): number => {
+  const found = CARGOS.find((c) => c.cargo === cargo);
+  if (!found || !horas) return 0;
+  return Math.round((found.salario / 180) * horas);
+};
+
+// â”€â”€â”€ Option Lists â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+const FUENTES = [
+  "Hallazgos (no conformidades u oportunidades de mejora) encontrados en las auditorías internas o externas de calidad y SST",
+  "Identificación de Riesgos",
+  "Revisión por la dirección",
+  "Quejas presentadas por los clientes",
+  "Salidas no conformes",
+  "Reuniones con el cliente",
+  "Revisión del proceso",
+  "Evaluaciones de desempeño",
+  "Resultados de los indicadores",
+];
+
+const PROCESOS = [
+  "Direccionamiento Estratégico",
+  "Gestión Comercial y de Mercadeo",
+  "Administración de Nómina",
+  "Administración de Personal",
+  "Selección de Personal",
+  "Gestión de Servicio al Cliente",
+  "Gestión Administrativa y Financiera",
+  "Gestión de Talento Humano",
+  "Employer of Record",
+  "Gestión Integral",
+  "Outsourcing de tesorería",
+];
+
+const TRATAMIENTOS = [
+  "No Aplica",
+  "Concesión: Autorización para utilizar o liberar una salida que No es conforme con los requisitos especificados",
+  "Liberación: Autorización para proseguir con la siguiente etapa de un proceso",
+  "Corrección: Acción tomada para eliminar una No Conformidad detectada",
+  "Anulación: Acción tomada para declarar inválido la emisión de un documento, factura o similar",
+  "Otros",
+];
+
+const EVALUACION_RIESGO = [
+  "Riesgo leve - no afecto al cliente - no afecta el contrato (Es poco factible que ocurra)",
+  "Riesgo Moderado - insatisfacción del cliente - no afecta el contrato",
+  "Riesgo intolerable - afecto la continuidad del contrato",
+  "No Aplica",
+];
+
+const RECURSOS_OPTS: { value: string; icon: string }[] = [
+  { value: "Financieros",  icon: "💰" },
+  { value: "Tecnológicos", icon: "💻" },
+  { value: "Humanos",      icon: "👥" },
+];
+
+interface RespCorr {
+  nombre: string | null; cargo: string | null;
+  horas: number; fecha_inicio: string | null; fecha_fin: string | null; costo: number;
+}
+interface ActCorr {
+  id: number; actividad: string; recursos: string[]; costo_total: number;
+  responsables: RespCorr[];
+}
+interface RespPlanRow {
+  nombre: string | null; cargo: string | null;
+  horas: number; fecha_inicio: string | null; fecha_fin: string | null; costo: number; estado: string;
+}
+interface ActPlan {
+  id: number; descripcion: string; causas_asociadas: string[]; costo_total: number;
+  responsables_ejecucion:  RespPlanRow[];
+  responsables_seguimiento: RespPlanRow[];
+}
+interface ApiData {
+  registro: {
+    id: number; consecutivo: string; fuente: string; proceso: string;
+    cliente: string | null; fecha_apertura: string; fecha_limite: string | null;
+    tipo_accion: string; tratamiento: string | null; evaluacion_riesgo: string | null;
+    descripcion: string | null; estado: string; created_at: string;
+  };
+  actividades_correccion: ActCorr[];
+  causas: { analisis: string | null; inmediatas: string[]; raiz: string[] };
+  actividades_plan: ActPlan[];
+  costos: {
+    costo_correccion: number; costo_plan_accion: number; costo_plan_seguimiento: number;
+    perdida_ingresos: number; multas_sanciones: number; otros_costos_internos: number;
+    descuentos_cliente: number; otros_costos: number; costo_total: number;
+  };
+}
+
+// â”€â”€â”€ Edit types â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+type CorrRespEdit = {
+  nombre: string; cargo: string; horas: number | "";
+  fechaInicio: string; fechaFin: string;
+};
+type CorrActEdit = { actividad: string; recursos: string[]; responsables: CorrRespEdit[] };
+
+type PlanRespEdit = {
+  nombreEjecucion: string; cargoEjecucion: string; horasEjecucion: number | "";
+  fechaInicioEjecucion: string; fechaFinEjecucion: string;
+  nombreSeguimiento: string; cargoSeguimiento: string; horasSeguimiento: number | "";
+  fechaSeguimiento: string; estadoSeguimiento: string;
+};
+type PlanActEdit = { descripcion: string; causasAsociadas: string[]; responsables: PlanRespEdit[] };
+
+type EditData = {
+  fuente: string; proceso: string; cliente: string;
+  fechaApertura: string; fechaLimite: string;
+  tipoAccion: string; tratamiento: string; evaluacionRiesgo: string;
+  descripcion: string; estado: string;
+  actividadesCorreccion: CorrActEdit[];
+  analisisCausas: string; causasInmediatas: string[]; causasRaiz: string[];
+  actividadesPlan: PlanActEdit[];
+  costosExtra: {
+    perdidaIngresos: number; multasSanciones: number; otrosCostosInternos: number;
+    descuentosCliente: number; otrosCostos: number;
+  };
+};
+
+// â”€â”€â”€ Factories â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+const newCorrResp = (): CorrRespEdit => ({ nombre: "", cargo: "", horas: "", fechaInicio: "", fechaFin: "" });
+const newCorrAct  = (): CorrActEdit  => ({ actividad: "", recursos: [], responsables: [newCorrResp()] });
+const newPlanResp = (): PlanRespEdit => ({
+  nombreEjecucion: "", cargoEjecucion: "", horasEjecucion: "",
+  fechaInicioEjecucion: "", fechaFinEjecucion: "",
+  nombreSeguimiento: "", cargoSeguimiento: "", horasSeguimiento: "",
+  fechaSeguimiento: "", estadoSeguimiento: "Abierta",
+});
+const newPlanAct = (): PlanActEdit => ({ descripcion: "", causasAsociadas: [], responsables: [newPlanResp()] });
+
+// â”€â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+const fmtCOP = (n: number) =>
+  n > 0 ? n.toLocaleString("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 }) : "â€”";
+
+const fmtDate = (iso: string | null | undefined) =>
+  iso ? new Date(iso).toLocaleDateString("es-CO", { day: "2-digit", month: "short", year: "numeric" }) : "â€”";
+
+const toInputDate = (iso: string | null | undefined) => (iso ? iso.slice(0, 10) : "");
+
+function initEditData(d: ApiData): EditData {
+  const reg = d.registro;
+  return {
+    fuente:          reg.fuente       ?? "",
+    proceso:         reg.proceso      ?? "",
+    cliente:         reg.cliente      ?? "",
+    fechaApertura:   toInputDate(reg.fecha_apertura),
+    fechaLimite:     toInputDate(reg.fecha_limite),
+    tipoAccion:      reg.tipo_accion  ?? "",
+    tratamiento:     reg.tratamiento  ?? "",
+    evaluacionRiesgo: reg.evaluacion_riesgo ?? "",
+    descripcion:     reg.descripcion  ?? "",
+    estado:          reg.estado       ?? "Abierta",
+
+    actividadesCorreccion: d.actividades_correccion.length > 0
+      ? d.actividades_correccion.map((a) => ({
+          actividad: a.actividad,
+          recursos:  Array.isArray(a.recursos) ? a.recursos : [],
+          responsables: a.responsables.map((r) => ({
+            nombre:     r.nombre ?? "",
+            cargo:      r.cargo  ?? "",
+            horas:      Number(r.horas) as number | "",
+            fechaInicio: toInputDate(r.fecha_inicio),
+            fechaFin:    toInputDate(r.fecha_fin),
+          })),
+        }))
+      : [newCorrAct()],
+
+    analisisCausas: d.causas.analisis ?? "",
+    causasInmediatas: d.causas.inmediatas.length > 0 ? [...d.causas.inmediatas, ""] : ["", ""],
+    causasRaiz:       d.causas.raiz.length > 0       ? [...d.causas.raiz, ""]       : ["", ""],
+
+    actividadesPlan: d.actividades_plan.length > 0
+      ? d.actividades_plan.map((a) => {
+          const ejec = a.responsables_ejecucion  ?? [];
+          const segu = a.responsables_seguimiento ?? [];
+          const count = Math.max(ejec.length, segu.length, 1);
+          return {
+            descripcion:     a.descripcion,
+            causasAsociadas: Array.isArray(a.causas_asociadas) ? a.causas_asociadas : [],
+            responsables: Array.from({ length: count }, (_, k) => ({
+              nombreEjecucion:      ejec[k]?.nombre ?? "",
+              cargoEjecucion:       ejec[k]?.cargo  ?? "",
+              horasEjecucion:       Number(ejec[k]?.horas ?? 0) as number | "",
+              fechaInicioEjecucion: toInputDate(ejec[k]?.fecha_inicio),
+              fechaFinEjecucion:    toInputDate(ejec[k]?.fecha_fin),
+              nombreSeguimiento:    segu[k]?.nombre ?? "",
+              cargoSeguimiento:     segu[k]?.cargo  ?? "",
+              horasSeguimiento:     Number(segu[k]?.horas ?? 0) as number | "",
+              fechaSeguimiento:     toInputDate(segu[k]?.fecha_inicio),
+              estadoSeguimiento:    segu[k]?.estado ?? "Abierta",
+            })),
+          };
+        })
+      : [newPlanAct()],
+
+    costosExtra: {
+      perdidaIngresos:     Number(d.costos.perdida_ingresos      ?? 0),
+      multasSanciones:     Number(d.costos.multas_sanciones       ?? 0),
+      otrosCostosInternos: Number(d.costos.otros_costos_internos  ?? 0),
+      descuentosCliente:   Number(d.costos.descuentos_cliente      ?? 0),
+      otrosCostos:         Number(d.costos.otros_costos           ?? 0),
+    },
+  };
+}
+
+// â”€â”€â”€ Style constants â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+const inputCls =
+  "w-full px-3 py-2 rounded-lg border border-slate-300 text-slate-800 placeholder-slate-400 text-sm " +
+  "focus:outline-none focus:ring-2 focus:ring-[#105789]/30 focus:border-[#105789] bg-white transition";
+const labelCls = "block text-[10px] font-semibold text-slate-500 uppercase tracking-widest mb-1";
+
+// â”€â”€â”€ UI sub-components â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+function SecTitle({ n, label }: { n: number; label: string }) {
+  return (
+    <div className="px-6 py-2.5 border-b border-slate-200 bg-slate-50 flex items-center gap-2.5">
+      <span className="text-xs font-bold text-white bg-[#105789] rounded px-2 py-0.5">{n}</span>
+      <span className="text-xs font-bold uppercase tracking-widest text-[#105789]">{label}</span>
+    </div>
+  );
+}
+
+function Field({ label, value }: { label: string; value: string | null | undefined }) {
+  return (
+    <div className="flex flex-col gap-0.5">
+      <span className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">{label}</span>
+      <span className="text-sm text-slate-800 font-medium leading-snug">{value || <span className="text-slate-300">â€”</span>}</span>
+    </div>
+  );
+}
+
+function CargoSelect({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  return (
+    <select value={value} onChange={(e) => onChange(e.target.value)} className={inputCls}>
+      <option value="">Cargo...</option>
+      {CARGOS.map((c) => <option key={c.cargo} value={c.cargo}>{c.cargo}</option>)}
+    </select>
+  );
+}
+
+const ESTADOS_ACR  = ["Abierta", "Cerrada", "Parcial"];
+const TIPOS_ACCION = ["Correctiva", "De mejora"];
+const ESTADOS_PLAN = ["Abierta", "En progreso", "Completado", "Cerrada"];
+
+// â”€â”€â”€ Main Page â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+export default function AcrDetailPage() {
+  const params   = useParams();
+  const router   = useRouter();
+  const id       = params?.id as string;
+
+  const [data,       setData]       = useState<ApiData | null>(null);
+  const [loading,    setLoading]    = useState(true);
+  const [fetchError, setFetchError] = useState<string | null>(null);
+  const [isEditing,  setIsEditing]  = useState(false);
+  const [editData,   setEditData]   = useState<EditData | null>(null);
+  const [saving,     setSaving]     = useState(false);
+  const [saveError,  setSaveError]  = useState<string | null>(null);
+  const [saveOk,     setSaveOk]     = useState(false);
+
+  // â”€â”€ Fetch â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  const fetchData = useCallback(async () => {
+    setLoading(true); setFetchError(null);
+    try {
+      const res  = await fetch(`/api/acr/${id}`);
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error ?? "Error al cargar");
+      setData(json.data);
+    } catch (e) {
+      setFetchError(e instanceof Error ? e.message : "Error inesperado");
+    } finally {
+      setLoading(false);
+    }
+  }, [id]);
+
+  useEffect(() => { fetchData(); }, [fetchData]);
+
+  const handleEdit = () => {
+    if (!data) return;
+    setEditData(initEditData(data));
+    setSaveError(null); setSaveOk(false); setIsEditing(true);
+  };
+  const handleCancel = () => { setIsEditing(false); setSaveError(null); };
+
+  // â”€â”€ Calculated totals (reactive) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  const totalCorreccion = useMemo(() => {
+    if (!editData) return 0;
+    return editData.actividadesCorreccion.reduce(
+      (sum, act) => sum + act.responsables.reduce(
+        (s, r) => s + calcCosto(r.cargo, Number(r.horas) || 0), 0
+      ), 0
+    );
+  }, [editData]);
+
+  const totalPlanEjecucion = useMemo(() => {
+    if (!editData) return 0;
+    return editData.actividadesPlan.reduce(
+      (sum, act) => sum + act.responsables.reduce(
+        (s, r) => s + calcCosto(r.cargoEjecucion, Number(r.horasEjecucion) || 0), 0
+      ), 0
+    );
+  }, [editData]);
+
+  const totalPlanSeguimiento = useMemo(() => {
+    if (!editData) return 0;
+    return editData.actividadesPlan.reduce(
+      (sum, act) => sum + act.responsables.reduce(
+        (s, r) => s + calcCosto(r.cargoSeguimiento, Number(r.horasSeguimiento) || 0), 0
+      ), 0
+    );
+  }, [editData]);
+
+  const totalExtra = useMemo(() => {
+    if (!editData) return 0;
+    const c = editData.costosExtra;
+    return c.perdidaIngresos + c.multasSanciones + c.otrosCostosInternos + c.descuentosCliente + c.otrosCostos;
+  }, [editData]);
+
+  const grandTotal = totalCorreccion + totalPlanEjecucion + totalPlanSeguimiento + totalExtra;
+
+  // â”€â”€ AllCausas for plan checkboxes â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  const allCausas = useMemo(() => {
+    if (!editData) return [];
+    const out: { label: string; value: string }[] = [];
+    editData.causasInmediatas.forEach((c, i) => {
+      if (c.trim()) out.push({ label: `CI${i + 1}: ${c}`, value: `ci-${i}` });
+    });
+    editData.causasRaiz.forEach((c, i) => {
+      if (c.trim()) out.push({ label: `CR${i + 1}: ${c}`, value: `cr-${i}` });
+    });
+    return out;
+  }, [editData]);
+
+  // â”€â”€ Save â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  const handleSave = async () => {
+    if (!editData) return;
+    setSaving(true); setSaveError(null); setSaveOk(false);
+    try {
+      const payload = {
+        fuente:           editData.fuente,
+        proceso:          editData.proceso,
+        cliente:          editData.cliente || null,
+        fechaApertura:    editData.fechaApertura,
+        fechaLimite:      editData.fechaLimite || null,
+        tipoAccion:       editData.tipoAccion,
+        tratamiento:      editData.tratamiento || null,
+        evaluacionRiesgo: editData.evaluacionRiesgo || null,
+        descripcion:      editData.descripcion || null,
+        estado:           editData.estado,
+        actividadesCorreccion: editData.actividadesCorreccion
+          .filter((a) => a.actividad.trim())
+          .map((a) => ({
+            actividad:  a.actividad,
+            recursos:   a.recursos,
+            costoTotal: a.responsables.reduce((s, r) => s + calcCosto(r.cargo, Number(r.horas) || 0), 0),
+            responsables: a.responsables.map((r) => ({
+              nombre:     r.nombre     || null,
+              cargo:      r.cargo      || null,
+              horas:      Number(r.horas) || 0,
+              fechaInicio: r.fechaInicio || null,
+              fechaFin:    r.fechaFin   || null,
+              costo:       calcCosto(r.cargo, Number(r.horas) || 0),
+            })),
+          })),
+        analisisCausas:   editData.analisisCausas || null,
+        causasInmediatas: editData.causasInmediatas.filter((c) => c.trim()),
+        causasRaiz:       editData.causasRaiz.filter((c) => c.trim()),
+        actividadesPlan: editData.actividadesPlan
+          .filter((a) => a.descripcion.trim())
+          .map((a) => ({
+            descripcion:     a.descripcion,
+            causasAsociadas: a.causasAsociadas,
+            costoTotal: a.responsables.reduce(
+              (s, r) =>
+                s +
+                calcCosto(r.cargoEjecucion,  Number(r.horasEjecucion)  || 0) +
+                calcCosto(r.cargoSeguimiento, Number(r.horasSeguimiento) || 0),
+              0
+            ),
+            responsables: a.responsables.map((r) => ({
+              nombreEjecucion:      r.nombreEjecucion      || null,
+              cargoEjecucion:       r.cargoEjecucion       || null,
+              horasEjecucion:       Number(r.horasEjecucion) || 0,
+              fechaInicioEjecucion: r.fechaInicioEjecucion || null,
+              fechaFinEjecucion:    r.fechaFinEjecucion    || null,
+              costoEjecucion:       calcCosto(r.cargoEjecucion, Number(r.horasEjecucion) || 0),
+              nombreSeguimiento:    r.nombreSeguimiento    || null,
+              cargoSeguimiento:     r.cargoSeguimiento     || null,
+              horasSeguimiento:     Number(r.horasSeguimiento) || 0,
+              fechaSeguimiento:     r.fechaSeguimiento     || null,
+              estadoSeguimiento:    r.estadoSeguimiento    || "Abierta",
+              costoSeguimiento:     calcCosto(r.cargoSeguimiento, Number(r.horasSeguimiento) || 0),
+            })),
+          })),
+        costosAsociados: {
+          costoCorreccion:      totalCorreccion,
+          costoPlanAccion:      totalPlanEjecucion,
+          costoPlanSeguimiento: totalPlanSeguimiento,
+          perdidaIngresos:      editData.costosExtra.perdidaIngresos,
+          multasSanciones:      editData.costosExtra.multasSanciones,
+          otrosCostosInternos:  editData.costosExtra.otrosCostosInternos,
+          descuentosCliente:    editData.costosExtra.descuentosCliente,
+          otrosCostos:          editData.costosExtra.otrosCostos,
+        },
+      };
+      const res = await fetch(`/api/acr/${id}`, {
+        method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error ?? "Error al guardar");
+      setSaveOk(true);
+      setIsEditing(false);
+      await fetchData();
+    } catch (e) {
+      setSaveError(e instanceof Error ? e.message : "Error inesperado");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // ─── Helpers ──────────────────────────────────────────────────────────────
+  const setED = (patch: Partial<EditData>) =>
+    setEditData((prev) => (prev ? { ...prev, ...patch } : null));
+
+  const updCorrAct = (ai: number, patch: Partial<CorrActEdit>) => {
+    if (!editData) return;
+    const arr = editData.actividadesCorreccion.map((a, i) => i === ai ? { ...a, ...patch } : a);
+    setED({ actividadesCorreccion: arr });
+  };
+  const updCorrResp = (ai: number, ri: number, patch: Partial<CorrRespEdit>) => {
+    if (!editData) return;
+    const arr = editData.actividadesCorreccion.map((a, i) => {
+      if (i !== ai) return a;
+      return { ...a, responsables: a.responsables.map((r, j) => j === ri ? { ...r, ...patch } : r) };
+    });
+    setED({ actividadesCorreccion: arr });
+  };
+  const updPlanAct = (ai: number, patch: Partial<PlanActEdit>) => {
+    if (!editData) return;
+    const arr = editData.actividadesPlan.map((a, i) => i === ai ? { ...a, ...patch } : a);
+    setED({ actividadesPlan: arr });
+  };
+  const updPlanResp = (ai: number, ri: number, patch: Partial<PlanRespEdit>) => {
+    if (!editData) return;
+    const arr = editData.actividadesPlan.map((a, i) => {
+      if (i !== ai) return a;
+      return { ...a, responsables: a.responsables.map((r, j) => j === ri ? { ...r, ...patch } : r) };
+    });
+    setED({ actividadesPlan: arr });
+  };
+  const toggleCausa = (ai: number, val: string) => {
+    if (!editData) return;
+    const current = editData.actividadesPlan[ai].causasAsociadas;
+    const next = current.includes(val) ? current.filter((v) => v !== val) : [...current, val];
+    updPlanAct(ai, { causasAsociadas: next });
+  };
+  const toggleRecurso = (ai: number, val: string) => {
+    if (!editData) return;
+    const current = editData.actividadesCorreccion[ai].recursos;
+    const next = current.includes(val) ? current.filter((v) => v !== val) : [...current, val];
+    updCorrAct(ai, { recursos: next });
+  };
+
+  // ─── Render ───────────────────────────────────────────────────────────────
+  if (loading) return (
+    <div className="flex flex-col flex-1">
+      <Header title="Detalle ACR" subtitle="Cargando..." />
+      <div className="flex-1 flex items-center justify-center">
+        <div className="w-8 h-8 border-4 border-[#105789] border-t-transparent rounded-full animate-spin" />
+      </div>
+    </div>
+  );
+
+  if (fetchError || !data) return (
+    <div className="flex flex-col flex-1">
+      <Header title="Detalle ACR" subtitle="Error" />
+      <div className="flex-1 flex items-center justify-center flex-col gap-3">
+        <p className="text-red-600 font-medium">{fetchError ?? "Registro no encontrado"}</p>
+        <button onClick={() => router.back()} className="text-sm text-[#105789] hover:underline">← Volver al historial</button>
+      </div>
+    </div>
+  );
+
+  const reg = data.registro;
+  const ed  = editData;
+
+  const estadoColor: Record<string, string> = {
+    Abierta: "bg-amber-100 text-amber-700 border-amber-300",
+    Cerrada: "bg-emerald-100 text-emerald-700 border-emerald-300",
+    Parcial: "bg-blue-100 text-blue-700 border-blue-300",
+  };
+
+  return (
+    <div className="flex flex-col flex-1">
+      <div className="no-print">
+        <Header
+          title={`ACR ${reg.consecutivo}`}
+          subtitle={`${reg.proceso} · ${reg.tipo_accion}`}
+        />
+      </div>
+
+      <main className="flex-1 p-6 max-w-6xl mx-auto w-full">
+        {/* ── Toolbar ─────────────────────────────────────────────────────── */}
+        <div className="flex items-center justify-between mb-5 flex-wrap gap-3">
+          <button
+            onClick={() => router.back()}
+            className="no-print flex items-center gap-1.5 text-sm text-slate-500 hover:text-[#105789] transition-colors font-medium"
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            </svg>
+            Volver al historial
+          </button>
+
+          <div className="flex items-center gap-3">
+            {saveOk && !isEditing && (
+              <span className="text-xs text-emerald-600 font-semibold bg-emerald-50 border border-emerald-200 px-3 py-1.5 rounded-full">
+                ✓ Cambios guardados
+              </span>
+            )}
+            {!isEditing ? (
+              <>
+                <button
+                  onClick={() => window.print()}
+                  className="no-print flex items-center gap-2 bg-white text-slate-700 text-sm font-semibold px-4 py-2 rounded-lg border border-slate-300 hover:bg-slate-50 transition-colors shadow-sm"
+                >
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                  Exportar a PDF
+                </button>
+                <button
+                  onClick={handleEdit}
+                  className="no-print flex items-center gap-2 bg-[#105789] text-white text-sm font-semibold px-4 py-2 rounded-lg hover:bg-[#0d3f6e] transition-colors shadow-sm"
+                >
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                  </svg>
+                  Editar ACR
+                </button>
+              </>
+            ) : (
+              <>
+                <button onClick={handleCancel} disabled={saving} className="text-sm font-semibold text-slate-600 border border-slate-300 px-4 py-2 rounded-lg hover:bg-slate-50 transition-colors disabled:opacity-50">
+                  Cancelar
+                </button>
+                <button onClick={handleSave} disabled={saving} className="flex items-center gap-2 bg-[#105789] text-white text-sm font-semibold px-4 py-2 rounded-lg hover:bg-[#0d3f6e] transition-colors shadow-sm disabled:opacity-60">
+                  {saving ? <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin inline-block" /> : (
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                  )}
+                  {saving ? "Guardando..." : "Guardar cambios"}
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+
+        {saveError && (
+          <div className="mb-4 px-4 py-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+            {saveError}
+          </div>
+        )}
+
+        {/* ── Document ────────────────────────────────────────────────────── */}
+        <div id="acr-document" className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden print:overflow-visible">
+
+          {/* Document header */}
+          <div
+            className="px-6 py-4 flex items-center justify-between gap-4 flex-wrap"
+            style={{ backgroundColor: "#105789", WebkitPrintColorAdjust: "exact", printColorAdjust: "exact" } as React.CSSProperties}
+          >
+            <div className="flex items-center gap-4">
+              <Image
+                src="/Titulo_empresa_v2.png"
+                alt="ACR"
+                width={180}
+                height={64}
+                className="object-contain"
+                unoptimized
+                style={{ filter: "brightness(0) invert(1)" }}
+              />
+              <div className="w-px h-10 bg-white/20" />
+              <div>
+                <p className="text-white/60 text-xs uppercase tracking-widest font-semibold mb-1">Acciones Correctivas y de Mejora · GIN · V07</p>
+                <p className="text-white font-bold text-xl font-mono">{reg.consecutivo}</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              {isEditing && ed ? (
+                <select
+                  value={ed.estado}
+                  onChange={(e) => setED({ estado: e.target.value })}
+                  className="text-sm font-semibold border-2 border-white/30 bg-white/10 text-white rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-white/50"
+                >
+                  {ESTADOS_ACR.map((s) => <option key={s} className="text-slate-800">{s}</option>)}
+                </select>
+              ) : (
+                <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-bold border ${estadoColor[reg.estado] ?? "bg-slate-100 text-slate-600"}`}>
+                  {reg.estado}
+                </span>
+              )}
+              <span className="text-white/60 text-xs">
+                Creado: {fmtDate(reg.created_at)}
+              </span>
+            </div>
+          </div>
+
+          {/* ── SECTION 1: Datos Generales ───────────────────────────────── */}
+          <SecTitle n={1} label="Datos Generales" />
+          <div className="px-6 py-5 grid grid-cols-2 md:grid-cols-4 gap-x-6 gap-y-4 border-b border-slate-200">
+            {isEditing && ed ? (
+              <>
+                <div>
+                  <label className={labelCls}>Consecutivo</label>
+                  <input value={reg.consecutivo} readOnly className={`${inputCls} opacity-50 cursor-not-allowed`} />
+                </div>
+                <div>
+                  <label className={labelCls}>Fuente</label>
+                  <select value={ed.fuente} onChange={(e) => setED({ fuente: e.target.value })} className={inputCls}>
+                    <option value="">Seleccionar...</option>
+                    {FUENTES.map((f) => <option key={f}>{f}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className={labelCls}>Proceso</label>
+                  <select value={ed.proceso} onChange={(e) => setED({ proceso: e.target.value })} className={inputCls}>
+                    <option value="">Seleccionar...</option>
+                    {PROCESOS.map((p) => <option key={p}>{p}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className={labelCls}>Tipo de acción</label>
+                  <select value={ed.tipoAccion} onChange={(e) => setED({ tipoAccion: e.target.value })} className={inputCls}>
+                    <option value="">Seleccionar...</option>
+                    {TIPOS_ACCION.map((t) => <option key={t}>{t}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className={labelCls}>Fecha de apertura</label>
+                  <input type="date" value={ed.fechaApertura} onChange={(e) => setED({ fechaApertura: e.target.value })} className={inputCls} />
+                </div>
+                <div>
+                  <label className={labelCls}>Fecha límite</label>
+                  <input type="date" value={ed.fechaLimite} onChange={(e) => setED({ fechaLimite: e.target.value })} className={inputCls} />
+                </div>
+                <div>
+                  <label className={labelCls}>Cliente</label>
+                  <input value={ed.cliente} onChange={(e) => setED({ cliente: e.target.value })} placeholder="—" className={inputCls} />
+                </div>
+                <div>
+                  <label className={labelCls}>Evaluación del riesgo</label>
+                  <select value={ed.evaluacionRiesgo} onChange={(e) => setED({ evaluacionRiesgo: e.target.value })} className={inputCls}>
+                    <option value="">Seleccionar...</option>
+                    {EVALUACION_RIESGO.map((v) => <option key={v}>{v}</option>)}
+                  </select>
+                </div>
+                {ed.fuente === "Salidas no conformes" && (
+                  <div className="col-span-2">
+                    <label className={labelCls}>Tratamiento</label>
+                    <select value={ed.tratamiento} onChange={(e) => setED({ tratamiento: e.target.value })} className={inputCls}>
+                      <option value="">Seleccionar...</option>
+                      {TRATAMIENTOS.map((t) => <option key={t}>{t}</option>)}
+                    </select>
+                  </div>
+                )}
+              </>
+            ) : (
+              <>
+                <Field label="Consecutivo" value={reg.consecutivo} />
+                <Field label="Proceso" value={reg.proceso} />
+                <Field label="Fecha de apertura" value={fmtDate(reg.fecha_apertura)} />
+                <Field label="Fecha límite" value={fmtDate(reg.fecha_limite)} />
+                <Field label="Fuente" value={reg.fuente} />
+                <Field label="Cliente" value={reg.cliente} />
+                <Field label="Tipo de acción" value={reg.tipo_accion} />
+                <Field label="Evaluación del riesgo" value={reg.evaluacion_riesgo} />
+                <Field label="Tratamiento" value={reg.tratamiento} />
+              </>
+            )}
+          </div>
+
+          {/* ── SECTION 2: Descripción ──────────────────────────────────── */}
+          <SecTitle n={2} label="Descripción de la Situación" />
+          <div className="px-6 py-5 border-b border-slate-200">
+            {isEditing && ed ? (
+              <textarea
+                value={ed.descripcion}
+                rows={4}
+                onChange={(e) => setED({ descripcion: e.target.value })}
+                placeholder="Descripción de la situación..."
+                className={inputCls}
+              />
+            ) : (
+              <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-wrap">
+                {reg.descripcion ?? <span className="text-slate-300">Sin descripción</span>}
+              </p>
+            )}
+          </div>
+
+          {/* ── SECTION 3: Corrección ───────────────────────────────────── */}
+          <SecTitle n={3} label="Corrección" />
+          <div className="px-6 py-5 border-b border-slate-200 space-y-4">
+            {isEditing && ed ? (
+              <>
+                {ed.actividadesCorreccion.map((act, ai) => (
+                  <div key={ai} className="border border-slate-200 rounded-lg overflow-hidden">
+                    <div className="bg-slate-50 px-4 py-2.5 flex items-center justify-between gap-3 border-b border-slate-200">
+                      <span className="text-xs font-bold text-[#105789] uppercase tracking-wide">Actividad {ai + 1}</span>
+                      <button
+                        onClick={() => setED({ actividadesCorreccion: ed.actividadesCorreccion.filter((_, i) => i !== ai) })}
+                        className="text-xs text-red-500 hover:text-red-700 font-medium flex items-center gap-1"
+                      >
+                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                        Eliminar
+                      </button>
+                    </div>
+                    <div className="p-4 space-y-3">
+                      <div>
+                        <label className={labelCls}>Actividad</label>
+                        <textarea rows={2} value={act.actividad} onChange={(e) => updCorrAct(ai, { actividad: e.target.value })} placeholder="Describe la actividad..." className={inputCls} />
+                      </div>
+                      <div>
+                        <label className={labelCls}>Recursos</label>
+                        <div className="flex gap-5 mt-1">
+                          {RECURSOS_OPTS.map(({ value, icon }) => (
+                            <label key={value} className="flex items-center gap-1.5 text-sm cursor-pointer select-none">
+                              <input
+                                type="checkbox"
+                                checked={act.recursos.includes(value)}
+                                onChange={() => toggleRecurso(ai, value)}
+                                className="w-4 h-4 accent-[#105789]"
+                              />
+                              <span>{icon} {value}</span>
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-xs border-collapse">
+                          <thead>
+                            <tr className="bg-[#105789] text-white">
+                              {["Nombre", "Cargo", "Horas", "Fecha inicio", "Fecha fin", "Costo estimado", ""].map((h) => (
+                                <th key={h} className="text-left px-3 py-2 text-[10px] font-semibold uppercase tracking-wide whitespace-nowrap">{h}</th>
+                              ))}
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {act.responsables.map((r, ri) => (
+                              <tr key={ri} className="border-b border-slate-100">
+                                <td className="px-2 py-1.5">
+                                  <input className="w-32 text-xs border border-slate-200 rounded px-2 py-1 focus:outline-none focus:border-[#105789]" value={r.nombre} placeholder="Nombre" onChange={(e) => updCorrResp(ai, ri, { nombre: e.target.value })} />
+                                </td>
+                                <td className="px-2 py-1.5">
+                                  <CargoSelect value={r.cargo} onChange={(v) => updCorrResp(ai, ri, { cargo: v })} />
+                                </td>
+                                <td className="px-2 py-1.5">
+                                  <input type="number" step="0.25" min="0" className="w-16 text-xs border border-slate-200 rounded px-2 py-1 focus:outline-none focus:border-[#105789]" value={r.horas} onChange={(e) => updCorrResp(ai, ri, { horas: e.target.value === "" ? "" : Number(e.target.value) })} />
+                                </td>
+                                <td className="px-2 py-1.5">
+                                  <input type="date" className="text-xs border border-slate-200 rounded px-2 py-1 focus:outline-none focus:border-[#105789]" value={r.fechaInicio} onChange={(e) => updCorrResp(ai, ri, { fechaInicio: e.target.value })} />
+                                </td>
+                                <td className="px-2 py-1.5">
+                                  <input type="date" className="text-xs border border-slate-200 rounded px-2 py-1 focus:outline-none focus:border-[#105789]" value={r.fechaFin} onChange={(e) => updCorrResp(ai, ri, { fechaFin: e.target.value })} />
+                                </td>
+                                <td className="px-2 py-1.5 font-mono text-slate-700 whitespace-nowrap">
+                                  {fmtCOP(calcCosto(r.cargo, Number(r.horas) || 0))}
+                                </td>
+                                <td className="px-2 py-1.5">
+                                  <button onClick={() => updCorrAct(ai, { responsables: act.responsables.filter((_, j) => j !== ri) })} className="text-red-400 hover:text-red-600 text-lg leading-none">×</button>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                      <button onClick={() => updCorrAct(ai, { responsables: [...act.responsables, newCorrResp()] })} className="text-xs text-[#105789] border border-dashed border-[#105789]/40 px-3 py-1.5 rounded hover:bg-blue-50 transition-colors">
+                        + Agregar responsable
+                      </button>
+                      {act.responsables.length > 0 && (
+                        <p className="text-xs text-slate-500 text-right">
+                          Subtotal corrección: <span className="font-mono font-semibold text-slate-700">{fmtCOP(act.responsables.reduce((s, r) => s + calcCosto(r.cargo, Number(r.horas) || 0), 0))}</span>
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                ))}
+                <button onClick={() => setED({ actividadesCorreccion: [...ed.actividadesCorreccion, newCorrAct()] })} className="text-sm text-[#105789] border border-dashed border-[#105789]/40 px-4 py-2 rounded-lg hover:bg-blue-50 transition-colors font-medium">
+                  + Agregar actividad de corrección
+                </button>
+              </>
+            ) : (
+              data.actividades_correccion.length === 0
+                ? <p className="text-sm text-slate-400 italic">Sin actividades de corrección registradas</p>
+                : <div className="space-y-4">
+                    {data.actividades_correccion.map((act) => (
+                      <div key={act.id} className="border border-slate-200 rounded-lg overflow-hidden">
+                        <div className="bg-slate-50 px-4 py-2.5 border-b border-slate-200 flex items-start justify-between">
+                          <p className="text-sm font-semibold text-slate-800">{act.actividad}</p>
+                          {Array.isArray(act.recursos) && act.recursos.length > 0 && (
+                            <span className="text-xs text-slate-500 ml-3 shrink-0">{act.recursos.join(", ")}</span>
+                          )}
+                        </div>
+                        <div className="overflow-x-auto">
+                          <table className="w-full text-xs">
+                            <thead>
+                              <tr className="bg-[#105789]/10 border-b border-slate-200">
+                                {["Nombre","Cargo","Horas","Fecha inicio","Fecha fin","Costo"].map((h) => (
+                                  <th key={h} className="text-left px-4 py-2 text-[10px] font-semibold uppercase tracking-wide text-slate-500">{h}</th>
+                                ))}
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-100">
+                              {act.responsables.map((r, ri) => (
+                                <tr key={ri} className="hover:bg-slate-50">
+                                  <td className="px-4 py-2 text-slate-800 font-medium">{r.nombre ?? "—"}</td>
+                                  <td className="px-4 py-2 text-slate-600">{r.cargo  ?? "—"}</td>
+                                  <td className="px-4 py-2 text-slate-600">{r.horas}</td>
+                                  <td className="px-4 py-2 text-slate-500">{fmtDate(r.fecha_inicio)}</td>
+                                  <td className="px-4 py-2 text-slate-500">{fmtDate(r.fecha_fin)}</td>
+                                  <td className="px-4 py-2 font-mono text-slate-700">{fmtCOP(Number(r.costo))}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+            )}
+          </div>
+
+          {/* ── SECTION 4: Causas ───────────────────────────────────────── */}
+          <SecTitle n={4} label="Identificación de Causas" />
+          <div className="px-6 py-5 border-b border-slate-200 space-y-4">
+            {isEditing && ed ? (
+              <>
+                <div>
+                  <label className={labelCls}>Análisis general de causas</label>
+                  <textarea rows={3} value={ed.analisisCausas} onChange={(e) => setED({ analisisCausas: e.target.value })} placeholder="Análisis general..." className={inputCls} />
+                </div>
+                <div className="grid md:grid-cols-2 gap-6">
+                  <div>
+                    <p className="text-xs font-bold uppercase tracking-widest text-[#105789] mb-3">Causas Inmediatas</p>
+                    <div className="space-y-2">
+                      {ed.causasInmediatas.map((c, i) => (
+                        <div key={i} className="flex gap-2 items-start">
+                          <span className="text-xs font-bold text-slate-400 mt-2">{i + 1}.</span>
+                          <textarea rows={2} value={c} onChange={(e) => { const arr = [...ed.causasInmediatas]; arr[i] = e.target.value; setED({ causasInmediatas: arr }); }} placeholder="Causa inmediata..." className="flex-1 text-sm border border-slate-300 rounded px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-[#105789]/30 focus:border-[#105789] resize-none" />
+                        </div>
+                      ))}
+                      <button onClick={() => setED({ causasInmediatas: [...ed.causasInmediatas, ""] })} className="text-xs text-[#105789] hover:underline">+ Agregar causa</button>
+                    </div>
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold uppercase tracking-widest text-red-600 mb-3">Causas Raíz</p>
+                    <div className="space-y-2">
+                      {ed.causasRaiz.map((c, i) => (
+                        <div key={i} className="flex gap-2 items-start">
+                          <span className="text-xs font-bold text-slate-400 mt-2">{i + 1}.</span>
+                          <textarea rows={3} value={c} onChange={(e) => { const arr = [...ed.causasRaiz]; arr[i] = e.target.value; setED({ causasRaiz: arr }); }} placeholder="Causa raíz..." className="flex-1 text-sm border border-slate-300 rounded px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-[#105789]/30 focus:border-[#105789] resize-none" />
+                        </div>
+                      ))}
+                      <button onClick={() => setED({ causasRaiz: [...ed.causasRaiz, ""] })} className="text-xs text-[#105789] hover:underline">+ Agregar causa raíz</button>
+                    </div>
+                  </div>
+                </div>
+              </>
+            ) : (
+              <>
+                {data.causas.analisis && (
+                  <div className="mb-4">
+                    <p className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-1.5">Análisis general</p>
+                    <p className="text-sm text-slate-700 whitespace-pre-wrap">{data.causas.analisis}</p>
+                  </div>
+                )}
+                <div className="grid md:grid-cols-2 gap-6">
+                  <div>
+                    <p className="text-xs font-bold uppercase tracking-widest text-[#105789] mb-3">Causas Inmediatas</p>
+                    <ol className="space-y-2">
+                      {data.causas.inmediatas.map((c, i) => (
+                        <li key={i} className="flex gap-2 text-sm text-slate-700">
+                          <span className="text-xs font-bold text-slate-400 mt-0.5">{i + 1}.</span>
+                          <span>{c}</span>
+                        </li>
+                      ))}
+                      {data.causas.inmediatas.length === 0 && <p className="text-slate-400 text-sm italic">No registradas</p>}
+                    </ol>
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold uppercase tracking-widest text-red-600 mb-3">Causas Raíz</p>
+                    <ol className="space-y-2">
+                      {data.causas.raiz.map((c, i) => (
+                        <li key={i} className="flex gap-2 text-sm text-slate-700">
+                          <span className="text-xs font-bold text-red-400 mt-0.5">{i + 1}.</span>
+                          <span>{c}</span>
+                        </li>
+                      ))}
+                      {data.causas.raiz.length === 0 && <p className="text-slate-400 text-sm italic">No registradas</p>}
+                    </ol>
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+
+          {/* ── SECTION 5: Plan de Acción ───────────────────────────────── */}
+          <SecTitle n={5} label="Plan de Acción" />
+          <div className="px-6 py-5 border-b border-slate-200 space-y-4">
+            {isEditing && ed ? (
+              <>
+                {ed.actividadesPlan.map((act, ai) => (
+                  <div key={ai} className="border border-slate-200 rounded-lg overflow-hidden">
+                    <div className="bg-slate-50 px-4 py-2.5 flex items-center justify-between border-b border-slate-200">
+                      <span className="text-xs font-bold text-[#105789] uppercase tracking-wide">Actividad {ai + 1}</span>
+                      <button onClick={() => setED({ actividadesPlan: ed.actividadesPlan.filter((_, i) => i !== ai) })} className="text-xs text-red-500 hover:text-red-700 font-medium flex items-center gap-1">
+                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                        Eliminar
+                      </button>
+                    </div>
+                    <div className="p-4 space-y-3">
+                      <div>
+                        <label className={labelCls}>Actividad a desarrollar</label>
+                        <textarea rows={2} value={act.descripcion} onChange={(e) => updPlanAct(ai, { descripcion: e.target.value })} placeholder="Describe la actividad..." className={inputCls} />
+                      </div>
+                      {allCausas.length > 0 && (
+                        <div>
+                          <label className={labelCls}>Causas asociadas</label>
+                          <div className="grid grid-cols-2 gap-1.5 mt-1">
+                            {allCausas.map(({ label, value }) => (
+                              <label key={value} className="flex items-start gap-1.5 text-xs cursor-pointer select-none">
+                                <input type="checkbox" checked={act.causasAsociadas.includes(value)} onChange={() => toggleCausa(ai, value)} className="mt-0.5 w-4 h-4 accent-[#105789] shrink-0" />
+                                <span className="text-slate-700">{label}</span>
+                              </label>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      {act.responsables.map((r, ri) => (
+                        <div key={ri} className="border border-slate-100 rounded-lg p-3 bg-slate-50/50 space-y-3">
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Responsable {ri + 1}</span>
+                            <button onClick={() => updPlanAct(ai, { responsables: act.responsables.filter((_, k) => k !== ri) })} className="text-xs text-red-400 hover:text-red-600 font-medium">Eliminar</button>
+                          </div>
+                          <div className="grid md:grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                              <p className="text-[10px] font-bold uppercase text-blue-600 tracking-wide">Ejecución</p>
+                              <input placeholder="Nombre" value={r.nombreEjecucion} onChange={(e) => updPlanResp(ai, ri, { nombreEjecucion: e.target.value })} className="w-full text-xs border border-slate-200 rounded px-2 py-1.5 focus:outline-none focus:border-[#105789]" />
+                              <CargoSelect value={r.cargoEjecucion} onChange={(v) => updPlanResp(ai, ri, { cargoEjecucion: v })} />
+                              <div className="flex gap-2">
+                                <div className="flex-1">
+                                  <label className="text-[10px] text-slate-400">Horas</label>
+                                  <input type="number" step="0.25" min="0" value={r.horasEjecucion} onChange={(e) => updPlanResp(ai, ri, { horasEjecucion: e.target.value === "" ? "" : Number(e.target.value) })} className="w-full text-xs border border-slate-200 rounded px-2 py-1 focus:outline-none focus:border-[#105789]" />
+                                </div>
+                                <div className="flex-1">
+                                  <label className="text-[10px] text-slate-400">Inicio</label>
+                                  <input type="date" value={r.fechaInicioEjecucion} onChange={(e) => updPlanResp(ai, ri, { fechaInicioEjecucion: e.target.value })} className="w-full text-xs border border-slate-200 rounded px-2 py-1 focus:outline-none focus:border-[#105789]" />
+                                </div>
+                                <div className="flex-1">
+                                  <label className="text-[10px] text-slate-400">Fin</label>
+                                  <input type="date" value={r.fechaFinEjecucion} onChange={(e) => updPlanResp(ai, ri, { fechaFinEjecucion: e.target.value })} className="w-full text-xs border border-slate-200 rounded px-2 py-1 focus:outline-none focus:border-[#105789]" />
+                                </div>
+                              </div>
+                              <p className="text-xs text-slate-500">Costo estimado: <span className="font-mono font-semibold text-blue-700">{fmtCOP(calcCosto(r.cargoEjecucion, Number(r.horasEjecucion) || 0))}</span></p>
+                            </div>
+                            <div className="space-y-2">
+                              <p className="text-[10px] font-bold uppercase text-emerald-600 tracking-wide">Seguimiento</p>
+                              <input placeholder="Nombre" value={r.nombreSeguimiento} onChange={(e) => updPlanResp(ai, ri, { nombreSeguimiento: e.target.value })} className="w-full text-xs border border-slate-200 rounded px-2 py-1.5 focus:outline-none focus:border-[#105789]" />
+                              <CargoSelect value={r.cargoSeguimiento} onChange={(v) => updPlanResp(ai, ri, { cargoSeguimiento: v })} />
+                              <div className="flex gap-2">
+                                <div className="flex-1">
+                                  <label className="text-[10px] text-slate-400">Horas</label>
+                                  <input type="number" step="0.25" min="0" value={r.horasSeguimiento} onChange={(e) => updPlanResp(ai, ri, { horasSeguimiento: e.target.value === "" ? "" : Number(e.target.value) })} className="w-full text-xs border border-slate-200 rounded px-2 py-1 focus:outline-none focus:border-[#105789]" />
+                                </div>
+                                <div className="flex-1">
+                                  <label className="text-[10px] text-slate-400">Fecha</label>
+                                  <input type="date" value={r.fechaSeguimiento} onChange={(e) => updPlanResp(ai, ri, { fechaSeguimiento: e.target.value })} className="w-full text-xs border border-slate-200 rounded px-2 py-1 focus:outline-none focus:border-[#105789]" />
+                                </div>
+                                <div className="flex-1">
+                                  <label className="text-[10px] text-slate-400">Estado</label>
+                                  <select value={r.estadoSeguimiento} onChange={(e) => updPlanResp(ai, ri, { estadoSeguimiento: e.target.value })} className="w-full text-xs border border-slate-200 rounded px-2 py-1 focus:outline-none focus:border-[#105789] bg-white">
+                                    {ESTADOS_PLAN.map((s) => <option key={s}>{s}</option>)}
+                                  </select>
+                                </div>
+                              </div>
+                              <p className="text-xs text-slate-500">Costo estimado: <span className="font-mono font-semibold text-emerald-700">{fmtCOP(calcCosto(r.cargoSeguimiento, Number(r.horasSeguimiento) || 0))}</span></p>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                      <button onClick={() => updPlanAct(ai, { responsables: [...act.responsables, newPlanResp()] })} className="text-xs text-[#105789] border border-dashed border-[#105789]/40 px-3 py-1.5 rounded hover:bg-blue-50 transition-colors">
+                        + Agregar responsable
+                      </button>
+                    </div>
+                  </div>
+                ))}
+                <button onClick={() => setED({ actividadesPlan: [...ed.actividadesPlan, newPlanAct()] })} className="text-sm text-[#105789] border border-dashed border-[#105789]/40 px-4 py-2 rounded-lg hover:bg-blue-50 transition-colors font-medium">
+                  + Agregar actividad al plan
+                </button>
+              </>
+            ) : (
+              data.actividades_plan.length === 0
+                ? <p className="text-sm text-slate-400 italic">Sin actividades en el plan de acción</p>
+                : <div className="space-y-4">
+                    {data.actividades_plan.map((act) => {
+                      const ejec = act.responsables_ejecucion  ?? [];
+                      const segu = act.responsables_seguimiento ?? [];
+                      return (
+                        <div key={act.id} className="border border-slate-200 rounded-lg overflow-hidden">
+                          <div className="bg-slate-50 px-4 py-3 border-b border-slate-200">
+                            <p className="text-sm font-semibold text-slate-800">{act.descripcion}</p>
+                            {Array.isArray(act.causas_asociadas) && act.causas_asociadas.length > 0 && (
+                              <div className="mt-2.5 border-t border-slate-200 pt-2.5">
+                                <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-1.5">Causas asociadas</p>
+                                <ul className="space-y-1">
+                                  {act.causas_asociadas.map((c, i) => {
+                                    let text = c;
+                                    if (c.startsWith("ci-")) {
+                                      const idx = parseInt(c.slice(3), 10);
+                                      text = data.causas.inmediatas[idx] ?? c;
+                                    } else if (c.startsWith("cr-")) {
+                                      const idx = parseInt(c.slice(3), 10);
+                                      text = data.causas.raiz[idx] ?? c;
+                                    }
+                                    return (
+                                      <li key={i} className="flex gap-2 text-xs text-slate-700">
+                                        <span className="shrink-0 w-4 h-4 rounded-full bg-[#105789]/10 text-[#105789] font-bold flex items-center justify-center text-[9px] mt-0.5">{i + 1}</span>
+                                        <span className="leading-snug">{text}</span>
+                                      </li>
+                                    );
+                                  })}
+                                </ul>
+                              </div>
+                            )}
+                          </div>
+                          <div className="grid md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-slate-100">
+                            <div className="p-4">
+                              <p className="text-[10px] font-bold uppercase tracking-widest text-blue-600 mb-2">Ejecución</p>
+                              <div className="space-y-3">
+                                {ejec.map((r, i) => (
+                                  <div key={i} className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs border-b border-slate-100 pb-2 last:border-0 last:pb-0">
+                                    <div><span className="text-slate-400 font-semibold">Nombre: </span><span className="text-slate-800">{r.nombre ?? "—"}</span></div>
+                                    <div><span className="text-slate-400 font-semibold">Cargo: </span><span className="text-slate-700">{r.cargo ?? "—"}</span></div>
+                                    <div><span className="text-slate-400 font-semibold">Horas: </span><span className="text-slate-700">{r.horas}h</span></div>
+                                    <div><span className="text-slate-400 font-semibold">Costo: </span><span className="font-mono text-blue-700">{r.costo > 0 ? `$${Number(r.costo).toLocaleString("es-CO")}` : "—"}</span></div>
+                                    {r.fecha_inicio && (
+                                      <div className="col-span-2"><span className="text-slate-400 font-semibold">Período: </span><span className="text-slate-600">{fmtDate(r.fecha_inicio)} → {fmtDate(r.fecha_fin)}</span></div>
+                                    )}
+                                  </div>
+                                ))}
+                                {ejec.length === 0 && <p className="text-xs text-slate-300">—</p>}
+                              </div>
+                            </div>
+                            <div className="p-4">
+                              <p className="text-[10px] font-bold uppercase tracking-widest text-emerald-600 mb-2">Seguimiento</p>
+                              <div className="space-y-3">
+                                {segu.map((r, i) => (
+                                  <div key={i} className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs border-b border-slate-100 pb-2 last:border-0 last:pb-0">
+                                    <div><span className="text-slate-400 font-semibold">Nombre: </span><span className="text-slate-800">{r.nombre ?? "—"}</span></div>
+                                    <div><span className="text-slate-400 font-semibold">Cargo: </span><span className="text-slate-700">{r.cargo ?? "—"}</span></div>
+                                    <div><span className="text-slate-400 font-semibold">Horas: </span><span className="text-slate-700">{r.horas}h</span></div>
+                                    <div><span className="text-slate-400 font-semibold">Costo: </span><span className="font-mono text-emerald-700">{r.costo > 0 ? `$${Number(r.costo).toLocaleString("es-CO")}` : "—"}</span></div>
+                                    <div className="col-span-2 flex items-center gap-1.5"><span className="text-slate-400 font-semibold">Estado: </span>
+                                      <span className={`inline-block font-semibold rounded px-1.5 py-0.5 ${
+                                        r.estado === "Completado" ? "bg-emerald-100 text-emerald-700" :
+                                        r.estado === "En progreso" ? "bg-blue-100 text-blue-700" :
+                                        "bg-amber-100 text-amber-700"
+                                      }`}>{r.estado}</span>
+                                    </div>
+                                    {r.fecha_inicio && (
+                                      <div className="col-span-2"><span className="text-slate-400 font-semibold">Fecha: </span><span className="text-slate-600">{fmtDate(r.fecha_inicio)}</span></div>
+                                    )}
+                                  </div>
+                                ))}
+                                {segu.length === 0 && <p className="text-xs text-slate-300">—</p>}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+            )}
+          </div>
+
+          {/* ── SECTION 6: Costos ───────────────────────────────────────── */}
+          <SecTitle n={6} label="Costos Asociados a la ACR" />
+          <div className="px-6 py-5">
+            {isEditing && ed ? (
+              <div className="space-y-4">
+                <div className="grid grid-cols-3 gap-4">
+                  {([
+                    ["Costo corrección",  totalCorreccion      ],
+                    ["Costo plan acción", totalPlanEjecucion   ],
+                    ["Costo seguimiento", totalPlanSeguimiento ],
+                  ] as [string, number][]).map(([label, val]) => (
+                    <div key={label} className="border border-blue-100 rounded-lg p-3.5 bg-blue-50/50">
+                      <p className="text-[10px] font-semibold uppercase tracking-widest text-blue-400 mb-1">{label}</p>
+                      <p className="text-sm font-mono font-bold text-blue-800">{fmtCOP(val)}</p>
+                      <p className="text-[9px] text-blue-400 mt-0.5">Calculado automáticamente</p>
+                    </div>
+                  ))}
+                </div>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                  {([
+                    ["Pérdida de ingresos",    "perdidaIngresos"    ],
+                    ["Multas / sanciones",      "multasSanciones"    ],
+                    ["Otros costos internos",   "otrosCostosInternos"],
+                    ["Descuentos cliente",      "descuentosCliente"  ],
+                    ["Otros costos",            "otrosCostos"        ],
+                  ] as [string, keyof EditData["costosExtra"]][]).map(([label, key]) => (
+                    <div key={key}>
+                      <label className={labelCls}>{label}</label>
+                      <input
+                        type="number" min="0"
+                        value={ed.costosExtra[key]}
+                        onChange={(e) => setED({ costosExtra: { ...ed.costosExtra, [key]: Number(e.target.value) } })}
+                        className={`${inputCls} font-mono`}
+                      />
+                    </div>
+                  ))}
+                </div>
+                <div className="bg-[#105789] rounded-lg px-5 py-3 flex items-center justify-between">
+                  <span className="text-white/80 text-xs font-semibold uppercase tracking-widest">Total estimado</span>
+                  <span className="text-white font-bold font-mono text-lg">{fmtCOP(grandTotal)}</span>
+                </div>
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                {([
+                  ["Costo corrección",      data.costos.costo_correccion      ],
+                  ["Costo plan acción",     data.costos.costo_plan_accion     ],
+                  ["Costo seguimiento",     data.costos.costo_plan_seguimiento],
+                  ["Pérdida de ingresos",   data.costos.perdida_ingresos      ],
+                  ["Multas / sanciones",    data.costos.multas_sanciones      ],
+                  ["Otros costos internos", data.costos.otros_costos_internos ],
+                  ["Descuentos cliente",    data.costos.descuentos_cliente     ],
+                  ["Otros costos",          data.costos.otros_costos          ],
+                ] as [string, number][]).map(([label, val]) => (
+                  <div key={label} className="border border-slate-200 rounded-lg p-3.5 bg-slate-50/50">
+                    <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-400 mb-1">{label}</p>
+                    <p className="text-sm font-mono font-bold text-slate-800">
+                      {Number(val) > 0 ? fmtCOP(Number(val)) : <span className="text-slate-300 font-normal">—</span>}
+                    </p>
+                  </div>
+                ))}
+                <div
+                  className="col-span-2 md:col-span-4 rounded-lg px-5 py-3 flex items-center justify-between mt-2"
+                  style={{ backgroundColor: "#105789", WebkitPrintColorAdjust: "exact", printColorAdjust: "exact" } as React.CSSProperties}
+                >
+                  <span className="text-white/80 text-xs font-semibold uppercase tracking-widest">Costo Total ACR</span>
+                  <span className="text-white font-bold font-mono text-lg">
+                    {fmtCOP(Number(data.costos.costo_total))}
+                  </span>
+                </div>
+              </div>
+            )}
+          </div>
+
+        </div>
+      </main>
+    </div>
+  );
+}

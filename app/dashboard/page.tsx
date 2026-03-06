@@ -2,46 +2,26 @@ import Header from "@/components/Header";
 import StatCard from "@/components/StatCard";
 import StatusBadge from "@/components/StatusBadge";
 import Link from "next/link";
-import { AcrRecord } from "@/types";
+import { sql } from "@/lib/db";
 
-// Mock data — replace with Neon DB queries when backend is ready
-const mockRecentAcr: AcrRecord[] = [
-  {
-    id: "ACR-001",
-    title: "Revisión de nómina — Q1 2025",
-    description: "Corrección en cálculo de horas extra",
-    responsible: "Carlos Mendez",
-    amount: 12500,
-    status: "Cerrada",
-    date: "2025-02-10",
-    createdAt: "2025-02-01",
-    updatedAt: "2025-02-10",
-  },
-  {
-    id: "ACR-002",
-    title: "Auditoría procesos internos",
-    description: "Mejora en flujos de aprobación",
-    responsible: "Ana Torres",
-    amount: 8200,
-    status: "Abierta",
-    date: "2025-02-20",
-    createdAt: "2025-02-15",
-    updatedAt: "2025-02-20",
-  },
-  {
-    id: "ACR-003",
-    title: "Corrección facturas proveedor",
-    description: "Diferencia detectada en pagos",
-    responsible: "Luis García",
-    amount: 3700,
-    status: "Abierta",
-    date: "2025-02-22",
-    createdAt: "2025-02-22",
-    updatedAt: "2025-02-22",
-  },
-];
+async function getRecentAcr() {
+  const rows = await sql`
+    SELECT consecutivo, proceso, cliente, estado, fecha_apertura
+    FROM acr_registros
+    ORDER BY created_at DESC
+    LIMIT 3
+  `;
+  return rows as {
+    consecutivo: string;
+    proceso: string;
+    cliente: string | null;
+    estado: string;
+    fecha_apertura: string;
+  }[];
+}
 
-export default function DashboardPage() {
+export default async function DashboardPage() {
+  const recentAcr = await getRecentAcr();
   return (
     <div className="flex flex-col flex-1">
       <Header
@@ -55,7 +35,7 @@ export default function DashboardPage() {
           <h2 className="text-sm font-semibold text-slate-500 uppercase tracking-widest mb-4">
             Resumen General
           </h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5">
             <StatCard
               title="Total ACR"
               value="3"
@@ -92,18 +72,6 @@ export default function DashboardPage() {
                 </svg>
               }
             />
-            <StatCard
-              title="Impacto Económico"
-              value="$24,400"
-              description="Total acumulado en acciones"
-              accentColor="red"
-              trend={{ value: "$3,700", positive: false }}
-              icon={
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-              }
-            />
           </div>
         </section>
 
@@ -125,27 +93,32 @@ export default function DashboardPage() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="bg-slate-50 border-b border-slate-200">
-                  <th className="text-left px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">ID</th>
-                  <th className="text-left px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Título</th>
-                  <th className="text-left px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide hidden md:table-cell">Responsable</th>
+                  <th className="text-left px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Consecutivo</th>
+                  <th className="text-left px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Proceso</th>
+                  <th className="text-left px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide hidden md:table-cell">Cliente</th>
                   <th className="text-left px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Estado</th>
-                  <th className="text-right px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide hidden lg:table-cell">Monto</th>
+                  <th className="text-right px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide hidden lg:table-cell">Apertura</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {mockRecentAcr.map((acr) => (
-                  <tr key={acr.id} className="hover:bg-slate-50 transition-colors">
-                    <td className="px-5 py-3.5 font-mono text-xs text-slate-500">{acr.id}</td>
-                    <td className="px-5 py-3.5 font-medium text-slate-800">{acr.title}</td>
-                    <td className="px-5 py-3.5 text-slate-600 hidden md:table-cell">{acr.responsible}</td>
+                {recentAcr.map((acr) => (
+                  <tr key={acr.consecutivo} className="hover:bg-slate-50 transition-colors">
+                    <td className="px-5 py-3.5 font-mono text-xs text-slate-500">{acr.consecutivo}</td>
+                    <td className="px-5 py-3.5 font-medium text-slate-800">{acr.proceso}</td>
+                    <td className="px-5 py-3.5 text-slate-600 hidden md:table-cell">{acr.cliente ?? '—'}</td>
                     <td className="px-5 py-3.5">
-                      <StatusBadge status={acr.status} />
+                      <StatusBadge status={acr.estado as "Abierta" | "Cerrada" | "Parcial"} />
                     </td>
                     <td className="px-5 py-3.5 text-right text-slate-700 font-medium hidden lg:table-cell">
-                      ${acr.amount.toLocaleString("es-MX")}
+                      {new Date(acr.fecha_apertura).toLocaleDateString('es-CO', { day: '2-digit', month: '2-digit', year: 'numeric' })}
                     </td>
                   </tr>
                 ))}
+                {recentAcr.length === 0 && (
+                  <tr>
+                    <td colSpan={5} className="px-5 py-8 text-center text-slate-400 text-sm">No hay registros aún.</td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>

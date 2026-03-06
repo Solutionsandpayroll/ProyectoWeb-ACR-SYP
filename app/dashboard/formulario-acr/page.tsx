@@ -243,8 +243,143 @@ export default function FormularioAcrPage() {
 
   // ── Section 3 ──
   const [causasAnalisis, setCausasAnalisis] = useState("");
-  const [causasInmediatas, setCausasInmediatas] = useState<string[]>(["", ""]);
-  const [causasRaiz, setCausasRaiz] = useState<string[]>(["", ""]);
+  const [causasInmediatas, setCausasInmediatas] = useState<string[]>(["Causa inmediata 1...", "Causa inmediata 2..."]);
+  const [causasRaiz, setCausasRaiz] = useState<string[]>(["Causa raíz 1...", "Causa raíz 2..."]);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiError, setAiError] = useState<string | null>(null);
+  const [show5Porques, setShow5Porques] = useState(false);
+
+  const handleRellenarPrueba = () => {
+    const pick = <T,>(arr: T[]): T => arr[Math.floor(Math.random() * arr.length)];
+    const randInt = (min: number, max: number) => Math.floor(Math.random() * (max - min + 1)) + min;
+    const dateStr = (offset: number) => {
+      const d = new Date();
+      d.setDate(d.getDate() + offset);
+      return d.toISOString().split("T")[0];
+    };
+
+    const NOMBRES = ["Carlos Martínez", "Laura Gómez", "Andrés Pérez", "Sandra López", "Felipe Torres", "Diana Ríos"];
+    const CLIENTES = ["Distritech Colombia SAS", "Grupo Empresarial XYZ", "Inversiones Norte SAS", "Comercializadora Alianza", "Tech Solutions Ltda"];
+    const DESCRIPCIONES = [
+      "Se identificó un error en el proceso de liquidación de nómina que generó pagos incorrectos a 12 colaboradores del cliente, afectando la confianza en el servicio y generando reclamaciones formales.",
+      "El impuesto de ICA correspondiente al segundo bimestre no fue pagado en la fecha límite debido a falta de soporte adjunto en la solicitud y ausencia de seguimiento por parte del equipo de tesorería.",
+      "Durante la auditoría interna trimestral se detectaron inconsistencias en las afiliaciones a ARL de nuevos ingresos, con un retraso promedio de 15 días hábiles respecto al plazo legal.",
+      "Se presentó una no conformidad en el proceso de selección de personal: tres candidatos fueron contratados sin completar el proceso de verificación de referencias y antecedentes establecido en el procedimiento.",
+    ];
+    const ANALISIS_EJEMPLOS = [
+      "Análisis 5 Porqués:\nPor qué 1: No se realizó la verificación de soportes antes del pago → El procedimiento no establece un checklist obligatorio.\nPor qué 2: El procedimiento carece de checklist → No fue actualizado en la última revisión del SGI.\nPor qué 3: No fue actualizado → No existe responsable designado para el mantenimiento de procedimientos.\nPor qué 4: Sin responsable designado → La asignación de roles no fue formalizada en el organigrama.\nPor qué 5: Roles no formalizados → Ausencia de política de gestión por procesos con responsables claros.\n\nCausas Inmediatas:\n- Falta de verificación de soportes previo al pago.\n- Ausencia de checklist en el procedimiento.\n\nCausas Raíz:\n- No existe responsable formal del mantenimiento de procedimientos.\n- Ausencia de política de gestión por procesos.",
+    ];
+
+    const fuenteSeleccionada = pick(FUENTES);
+    const procesoSeleccionado = pick(PROCESOS);
+    const tipoAccion = pick(["Correctiva", "De mejora"]);
+    const tratamiento = fuenteSeleccionada === "Salidas no conformes" ? pick(TRATAMIENTOS.slice(1)) : "";
+    const cargoEj = pick(CARGOS.map((c) => c.cargo));
+    const cargoSeg = pick(CARGOS.map((c) => c.cargo));
+    const horasEj = randInt(4, 20);
+    const horasSeg = randInt(2, 10);
+
+    setInfo({
+      consecutivo,
+      fuente: fuenteSeleccionada,
+      proceso: procesoSeleccionado,
+      cliente: pick(CLIENTES),
+      fechaIncidente: dateStr(-randInt(5, 30)),
+      fechaRegistro: dateStr(0),
+      tipoAccion,
+      tratamiento,
+      evaluacionRiesgo: pick(EVALUACION_RIESGO),
+      descripcion: pick(DESCRIPCIONES),
+    });
+
+    setCorreccionActs([
+      {
+        actividad: "Revisión y corrección inmediata de los registros afectados.",
+        recursos: ["Humanos", "Tecnol\u00f3gicos"],
+        responsables: [{
+          nombre: pick(NOMBRES),
+          cargo: cargoEj,
+          horas: horasEj,
+          fechaInicio: dateStr(1),
+          fechaFin: dateStr(5),
+        }],
+      },
+      {
+        actividad: "Comunicación formal al cliente con el informe de corrección.",
+        recursos: ["Humanos"],
+        responsables: [{
+          nombre: pick(NOMBRES),
+          cargo: pick(CARGOS.map((c) => c.cargo)),
+          horas: randInt(2, 8),
+          fechaInicio: dateStr(2),
+          fechaFin: dateStr(6),
+        }],
+      },
+    ]);
+
+    setCausasAnalisis(pick(ANALISIS_EJEMPLOS));
+    setCausasInmediatas([
+      "Falta de verificación de soportes antes de ejecutar el proceso.",
+      "Ausencia de puntos de control en las etapas críticas del procedimiento.",
+    ]);
+    setCausasRaiz([
+      "Inexistencia de mecanismos de trazabilidad y responsables formales.",
+      "Cultura organizacional que no vincula errores procedimentales con correctivos.",
+    ]);
+
+    setPlanActs([{
+      descripcion: "Actualizar y socializar el procedimiento incluyendo checklist de verificación y responsables formales por etapa.",
+      causasAsociadas: ["ci-0", "ci-1", "cr-0"],
+      responsables: [{
+        nombreEjecucion: pick(NOMBRES),
+        cargoEjecucion: cargoEj,
+        horasEjecucion: horasEj,
+        fechaInicioEjecucion: dateStr(3),
+        fechaFinEjecucion: dateStr(20),
+        nombreSeguimiento: pick(NOMBRES),
+        cargoSeguimiento: cargoSeg,
+        fechaSeguimiento: dateStr(25),
+        estadoSeguimiento: "Abierta",
+        horasSeguimiento: horasSeg,
+        evidencia: "Procedimiento actualizado, acta de socialización firmada.",
+      }],
+    }]);
+
+    setCostos({
+      perdidaIngresos: String(randInt(500000, 5000000)),
+      multasSanciones: "0",
+      otrosCostosInternos: String(randInt(200000, 1000000)),
+      descuentosCliente: "0",
+      otrosCostos: "0",
+    });
+  };
+
+  const handleGenerarIA = async () => {    const situacion = info.descripcion.trim();
+    if (!situacion) {
+      setAiError("Completa primero el campo 'Descripción del problema' en Sección 1 para generar el análisis.");
+      return;
+    }
+    setAiLoading(true);
+    setAiError(null);
+    try {
+      const res = await fetch("/api/gemini-analisis", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ situacion }),
+      });
+      const data = await res.json();
+      console.log("[IA] Respuesta recibida:", data);
+      if (!res.ok) throw new Error(data.error ?? "Error desconocido");
+      if (data.finishReason && data.finishReason !== "STOP") {
+        console.warn("[IA] Respuesta posiblemente truncada. finishReason:", data.finishReason);
+      }
+      setCausasAnalisis(data.analisis);
+    } catch (err: unknown) {
+      setAiError(err instanceof Error ? err.message : "Error al generar el análisis.");
+    } finally {
+      setAiLoading(false);
+    }
+  };
 
   // ── Section 4 ──
   const [planActs, setPlanActs] = useState<ActividadPlan[]>([
@@ -922,7 +1057,7 @@ export default function FormularioAcrPage() {
                       <button
                         type="button"
                         onClick={() => addRespCorr(aIdx)}
-                        className="text-xs font-medium text-blue-600 hover:text-blue-800"
+                        className="cursor-pointer text-xs font-medium text-blue-600 hover:text-blue-800"
                       >
                         + Agregar responsable
                       </button>
@@ -936,7 +1071,7 @@ export default function FormularioAcrPage() {
                     type="button"
                     onClick={addActCorr}
                     disabled={correccionActs.length >= 15}
-                    className="px-4 py-2 bg-blue-50 hover:bg-blue-100 text-blue-700 text-sm font-medium rounded-lg transition disabled:opacity-40"
+                    className="cursor-pointer px-4 py-2 bg-blue-50 hover:bg-blue-100 text-blue-700 text-sm font-medium rounded-lg transition disabled:opacity-40"
                   >
                     + Agregar actividad
                   </button>
@@ -944,7 +1079,7 @@ export default function FormularioAcrPage() {
                     <button
                       type="button"
                       onClick={removeActCorr}
-                      className="px-4 py-2 bg-red-50 hover:bg-red-100 text-red-700 text-sm font-medium rounded-lg transition"
+                      className="cursor-pointer px-4 py-2 bg-red-50 hover:bg-red-100 text-red-700 text-sm font-medium rounded-lg transition"
                     >
                       − Quitar última
                     </button>
@@ -964,17 +1099,95 @@ export default function FormularioAcrPage() {
             ══════════════════════════════════════════════ */}
             <SectionCard number="3" title="Identificación de Causas Principales">
               <div className="space-y-5">
+
+                {/* ── Acordeón 5 Porqués ── */}
+                <div className="border border-blue-200 rounded-xl overflow-hidden">
+                  <button
+                    type="button"
+                    onClick={() => setShow5Porques((v) => !v)}
+                    className="cursor-pointer w-full flex items-center justify-between px-4 py-3 bg-blue-50 hover:bg-blue-100 transition text-left"
+                  >
+                    <span className="text-sm font-semibold text-blue-800">📚 ¿Qué es la metodología de los 5 Por Qué?</span>
+                    <svg
+                      className={`w-4 h-4 text-blue-600 transition-transform duration-200 ${show5Porques ? "rotate-180" : ""}`}
+                      fill="none" viewBox="0 0 24 24" stroke="currentColor"
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </button>
+
+                  {/* Grid-rows trick: animates height from 0 → auto smoothly */}
+                  <div
+                    className="transition-all duration-300 ease-in-out overflow-hidden"
+                    style={{ display: "grid", gridTemplateRows: show5Porques ? "1fr" : "0fr" }}
+                  >
+                    <div className="overflow-hidden">
+                      <div className="px-5 py-4 bg-white text-sm text-slate-700 space-y-4 border-t border-blue-100">
+                        <p>
+                          La técnica de los <strong>5 Por Qué</strong> es una herramienta de análisis de causa raíz desarrollada por
+                          Sakichi Toyoda y utilizada ampliamente en el Sistema de Producción Toyota. Su objetivo es identificar la
+                          causa raíz de un problema preguntando <em>"¿Por qué?"</em> sucesivamente hasta llegar a la raíz del problema.
+                        </p>
+
+                        <div>
+                          <p className="font-semibold text-slate-800 mb-2">¿Cómo funciona?</p>
+                          <ol className="list-decimal list-inside space-y-1 text-slate-600">
+                            <li><strong>Identifique el problema:</strong> Describa claramente la situación o incidente.</li>
+                            <li><strong>Pregunte "¿Por qué ocurrió?":</strong> Identifique la causa inmediata.</li>
+                            <li><strong>Repita "¿Por qué?":</strong> Para cada respuesta, pregunte nuevamente "¿Por qué?"</li>
+                            <li><strong>Continúe hasta 5 veces:</strong> O hasta que identifique la causa raíz.</li>
+                            <li><strong>Implemente acciones correctivas:</strong> Enfocadas en la causa raíz, no en los síntomas.</li>
+                          </ol>
+                        </div>
+
+                        <div className="bg-slate-50 border border-slate-200 rounded-lg px-4 py-3 space-y-2">
+                          <p className="font-semibold text-slate-800">Ejemplo práctico:</p>
+                          <p className="text-slate-600 text-xs italic">
+                            Durante los meses de enero a marzo de 2025, se presentaron errores recurrentes en la liquidación de nómina
+                            del cliente Empresa XYZ, específicamente en valores de horas extras y recargos nocturnos. Los archivos fueron
+                            enviados al cliente sin validación final, generando tres reprocesos consecutivos, retrasos en los pagos y
+                            múltiples reclamaciones formales. Como consecuencia, el cliente manifestó pérdida de confianza en el servicio
+                            y decidió cancelar el contrato en marzo de 2025.
+                          </p>
+                          <div className="space-y-1 text-xs text-slate-700 pt-1">
+                            <p><span className="font-semibold text-blue-700">¿Por qué 1?</span> Porque se enviaron archivos de nómina con errores en los cálculos.</p>
+                            <p><span className="font-semibold text-blue-700">¿Por qué 2?</span> Porque los datos liquidados no fueron verificados antes del envío al cliente.</p>
+                            <p><span className="font-semibold text-blue-700">¿Por qué 3?</span> Porque no existe una actividad obligatoria de doble verificación dentro del proceso operativo.</p>
+                            <p><span className="font-semibold text-blue-700">¿Por qué 4?</span> Porque el procedimiento documentado de nómina no define puntos de control, responsables ni checklist de validación.</p>
+                            <p><span className="font-semibold text-blue-700">¿Por qué 5?</span> <span className="text-slate-500">(Causa raíz)</span> Porque los procedimientos no han sido actualizados con base en incidentes anteriores ni en lecciones aprendidas del servicio.</p>
+                          </div>
+                          <p className="text-xs font-semibold text-emerald-700 pt-1">
+                            ✅ Causa Raíz Identificada: Falta de actualización y mejora continua de los procedimientos operativos con base en incidentes y lecciones aprendidas.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
                 {/* Análisis de causa */}
                 <div>
                   <div className="flex items-center justify-between mb-1">
                     <label className={labelCls}>Análisis de causa</label>
                     <button
                       type="button"
-                      className="text-xs font-medium text-purple-600 hover:text-purple-800 flex items-center gap-1 border border-purple-200 rounded px-2 py-0.5 transition hover:bg-purple-50"
+                      onClick={handleGenerarIA}
+                      disabled={aiLoading}
+                      className="cursor-pointer text-sm font-semibold text-purple-700 hover:text-purple-900 flex items-center gap-2 border border-purple-300 rounded-lg px-4 py-2 transition hover:bg-purple-50 bg-purple-50/50 shadow-sm disabled:opacity-60 disabled:cursor-not-allowed"
                     >
-                      <span>🤖</span> Generar con IA
+                      {aiLoading ? (
+                        <>
+                          <span className="inline-block w-4 h-4 border-2 border-purple-500 border-t-transparent rounded-full animate-spin" />
+                          Generando análisis...
+                        </>
+                      ) : (
+                        <><span className="text-base">🤖</span> Generar análisis con IA</>
+                      )}
                     </button>
                   </div>
+                  {aiError && (
+                    <p className="text-xs text-red-600 mb-1 bg-red-50 border border-red-200 rounded px-2 py-1">{aiError}</p>
+                  )}
                   <textarea
                     className={inputCls + " resize-none"}
                     rows={5}
@@ -996,7 +1209,7 @@ export default function FormularioAcrPage() {
                         <button
                           type="button"
                           onClick={() => setCausasInmediatas((p) => [...p, ""])}
-                          className="text-xs font-medium text-blue-600 hover:text-blue-800"
+                          className="cursor-pointer text-xs font-medium text-blue-600 hover:text-blue-800"
                         >
                           + Agregar
                         </button>
@@ -1005,7 +1218,7 @@ export default function FormularioAcrPage() {
                         <button
                           type="button"
                           onClick={() => setCausasInmediatas((p) => p.slice(0, -1))}
-                          className="text-xs font-medium text-red-500 hover:text-red-700"
+                          className="cursor-pointer text-xs font-medium text-red-500 hover:text-red-700"
                         >
                           − Quitar
                         </button>
@@ -1050,7 +1263,7 @@ export default function FormularioAcrPage() {
                         <button
                           type="button"
                           onClick={() => setCausasRaiz((p) => [...p, ""])}
-                          className="text-xs font-medium text-blue-600 hover:text-blue-800"
+                          className="cursor-pointer text-xs font-medium text-blue-600 hover:text-blue-800"
                         >
                           + Agregar
                         </button>
@@ -1059,7 +1272,7 @@ export default function FormularioAcrPage() {
                         <button
                           type="button"
                           onClick={() => setCausasRaiz((p) => p.slice(0, -1))}
-                          className="text-xs font-medium text-red-500 hover:text-red-700"
+                          className="cursor-pointer text-xs font-medium text-red-500 hover:text-red-700"
                         >
                           − Quitar
                         </button>
@@ -1382,7 +1595,7 @@ export default function FormularioAcrPage() {
                     <button
                       type="button"
                       onClick={() => addRespPlan(aIdx)}
-                      className="text-xs font-medium text-blue-600 hover:text-blue-800"
+                      className="cursor-pointer text-xs font-medium text-blue-600 hover:text-blue-800"
                     >
                       + Agregar responsable
                     </button>
@@ -1394,7 +1607,7 @@ export default function FormularioAcrPage() {
                   <button
                     type="button"
                     onClick={addActPlan}
-                    className="px-4 py-2 bg-blue-50 hover:bg-blue-100 text-blue-700 text-sm font-medium rounded-lg transition"
+                    className="cursor-pointer px-4 py-2 bg-blue-50 hover:bg-blue-100 text-blue-700 text-sm font-medium rounded-lg transition"
                   >
                     + Agregar actividad
                   </button>
@@ -1512,19 +1725,26 @@ export default function FormularioAcrPage() {
             <div className="bg-white rounded-2xl border border-slate-200 shadow-sm px-7 py-5 flex items-center justify-end gap-3 sticky bottom-4">
               <button
                 type="button"
+                onClick={handleRellenarPrueba}
+                className="cursor-pointer px-5 py-2.5 rounded-lg text-sm font-medium text-amber-700 hover:bg-amber-50 border border-amber-200 transition"
+              >
+                🧪 Rellenar con datos de prueba
+              </button>
+              <button
+                type="button"
                 onClick={() => {
                   if (confirm("¿Deseas limpiar todo el formulario? Se perderán los datos ingresados.")) {
                     window.location.reload();
                   }
                 }}
-                className="px-5 py-2.5 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-100 transition"
+                className="cursor-pointer px-5 py-2.5 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-100 transition"
               >
                 Limpiar formulario
               </button>
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white text-sm font-semibold rounded-lg shadow-md shadow-blue-600/20 transition-all flex items-center gap-2"
+                className="cursor-pointer px-6 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white text-sm font-semibold rounded-lg shadow-md shadow-blue-600/20 transition-all flex items-center gap-2"
               >
                 {isSubmitting ? (
                   <>
