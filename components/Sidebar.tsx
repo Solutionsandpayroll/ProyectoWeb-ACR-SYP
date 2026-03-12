@@ -51,6 +51,24 @@ const navItems = [
       </svg>
     ),
   },
+  {
+    label: "Control de Cambios",
+    href: "/dashboard/control-cambios",
+    icon: (
+      <svg xmlns="http://www.w3.org/2000/svg" className="h-4.5 w-4.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+      </svg>
+    ),
+  },
+  {
+    label: "ACRs Eliminadas",
+    href: "/dashboard/acr-eliminadas",
+    icon: (
+      <svg xmlns="http://www.w3.org/2000/svg" className="h-4.5 w-4.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+      </svg>
+    ),
+  },
 ];
 
 export default function Sidebar() {
@@ -60,6 +78,16 @@ export default function Sidebar() {
 
   useEffect(() => {
     setMounted(true);
+    // After all entry animations finish, freeze them so they don't replay
+    // when the print dialog toggles display:none ↔ visible on this component.
+    const timer = setTimeout(() => {
+      document.querySelectorAll<HTMLElement>(
+        '.sidebar-root, .nav-item, .section-label'
+      ).forEach((el) => {
+        el.style.animation = 'none';
+      });
+    }, 650); // max delay (0.22s) + duration (0.3s) + buffer
+    return () => clearTimeout(timer);
   }, []);
 
   const isActive = (href: string) => {
@@ -98,6 +126,7 @@ export default function Sidebar() {
         .nav-item:nth-child(3) { animation-delay: 0.14s; }
         .nav-item:nth-child(4) { animation-delay: 0.18s; }
         .nav-item:nth-child(5) { animation-delay: 0.22s; }
+        .nav-item:nth-child(6) { animation-delay: 0.26s; }
 
         .active-pill {
           animation: pulseGlow 2.6s ease-in-out infinite;

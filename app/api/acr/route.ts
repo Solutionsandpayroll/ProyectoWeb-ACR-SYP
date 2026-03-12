@@ -1,6 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { sql } from '@/lib/db';
 
+const toSafeNumber = (value: unknown): number => {
+  if (typeof value === 'number') return Number.isFinite(value) ? value : 0;
+  if (typeof value === 'string') {
+    const normalized = value.trim().replace(',', '.');
+    if (!normalized) return 0;
+    const parsed = Number(normalized);
+    return Number.isFinite(parsed) ? parsed : 0;
+  }
+  return 0;
+};
+
 // ─── GET: list all ACR records ─────────────────────────────────────────────
 export async function GET() {
   try {
@@ -49,7 +60,6 @@ export async function POST(request: NextRequest) {
       // Section 2
       actividadesCorreccion = [],
       // Section 3
-      analisisCausas,
       causasInmediatas = [],
       causasRaiz = [],
       // Section 4
@@ -85,8 +95,8 @@ export async function POST(request: NextRequest) {
     for (let i = 0; i < actividadesCorreccion.length; i++) {
       const act = actividadesCorreccion[i];
       const [actRow] = await sql`
-        INSERT INTO actividades_correccion (acr_id, orden, actividad, recursos, costo_total)
-        VALUES (${acrId}, ${i + 1}, ${act.actividad}, ${act.recursos ?? []}, ${act.costoTotal ?? 0})
+        INSERT INTO actividades_correccion (acr_id, orden, actividad, recursos, costo_total, evidencia, observaciones)
+        VALUES (${acrId}, ${i + 1}, ${act.actividad}, ${act.recursos ?? []}, ${act.costoTotal ?? 0}, ${act.evidencia ?? null}, ${act.observaciones ?? null})
         RETURNING id
       `;
       const actId = actRow.id;
@@ -98,8 +108,8 @@ export async function POST(request: NextRequest) {
             actividad_id, orden, nombre, cargo, horas, fecha_inicio, fecha_fin, costo
           ) VALUES (
             ${actId}, ${j + 1}, ${resp.nombre ?? null}, ${resp.cargo ?? null},
-            ${resp.horas ?? 0}, ${resp.fechaInicio ?? null}, ${resp.fechaFin ?? null},
-            ${resp.costo ?? 0}
+            ${toSafeNumber(resp.horas)}, ${resp.fechaInicio ?? null}, ${resp.fechaFin ?? null},
+            ${toSafeNumber(resp.costo)}
           )
         `;
       }
@@ -107,7 +117,7 @@ export async function POST(request: NextRequest) {
 
     // ── Section 3: Causes ─────────────────────────────────────────────────
     await sql`
-      INSERT INTO causas_acr (acr_id, analisis) VALUES (${acrId}, ${analisisCausas ?? null})
+      INSERT INTO causas_acr (acr_id) VALUES (${acrId})
     `;
 
     for (let i = 0; i < causasInmediatas.length; i++) {
@@ -132,8 +142,8 @@ export async function POST(request: NextRequest) {
     for (let i = 0; i < actividadesPlan.length; i++) {
       const act = actividadesPlan[i];
       const [planRow] = await sql`
-        INSERT INTO actividades_plan (acr_id, orden, descripcion, causas_asociadas, costo_total)
-        VALUES (${acrId}, ${i + 1}, ${act.descripcion}, ${act.causasAsociadas ?? []}, ${act.costoTotal ?? 0})
+        INSERT INTO actividades_plan (acr_id, orden, descripcion, causas_asociadas, costo_total, evidencia, observaciones)
+        VALUES (${acrId}, ${i + 1}, ${act.descripcion}, ${act.causasAsociadas ?? []}, ${act.costoTotal ?? 0}, ${act.evidencia ?? null}, ${act.observaciones ?? null})
         RETURNING id
       `;
       const planId = planRow.id;
@@ -149,9 +159,9 @@ export async function POST(request: NextRequest) {
           ) VALUES (
             ${planId}, 'ejecucion',
             ${r.nombreEjecucion    ?? null}, ${r.cargoEjecucion    ?? null},
-            ${r.horasEjecucion     ?? 0},
+            ${toSafeNumber(r.horasEjecucion)},
             ${r.fechaInicioEjecucion ?? null}, ${r.fechaFinEjecucion ?? null},
-            ${r.costoEjecucion     ?? 0}, 'Abierta'
+            ${toSafeNumber(r.costoEjecucion)}, 'Abierta'
           )
         `;
 
@@ -162,9 +172,9 @@ export async function POST(request: NextRequest) {
           ) VALUES (
             ${planId}, 'seguimiento',
             ${r.nombreSeguimiento   ?? null}, ${r.cargoSeguimiento   ?? null},
-            ${r.horasSeguimiento    ?? 0},
+            ${toSafeNumber(r.horasSeguimiento)},
             ${r.fechaSeguimiento    ?? null}, ${r.fechaSeguimiento   ?? null},
-            ${r.costoSeguimiento    ?? 0}, ${r.estadoSeguimiento  ?? 'Abierta'}
+            ${toSafeNumber(r.costoSeguimiento)}, ${r.estadoSeguimiento  ?? 'Abierta'}
           )
         `;
       }
@@ -183,14 +193,14 @@ export async function POST(request: NextRequest) {
     } = costosAsociados;
 
     const costoTotal =
-      Number(costoCorreccion) +
-      Number(costoPlanAccion) +
-      Number(costoPlanSeguimiento) +
-      Number(perdidaIngresos) +
-      Number(multasSanciones) +
-      Number(otrosCostosInternos) +
-      Number(descuentosCliente) +
-      Number(otrosCostos);
+      toSafeNumber(costoCorreccion) +
+      toSafeNumber(costoPlanAccion) +
+      toSafeNumber(costoPlanSeguimiento) +
+      toSafeNumber(perdidaIngresos) +
+      toSafeNumber(multasSanciones) +
+      toSafeNumber(otrosCostosInternos) +
+      toSafeNumber(descuentosCliente) +
+      toSafeNumber(otrosCostos);
 
     await sql`
       INSERT INTO costos_asociados (
@@ -200,9 +210,9 @@ export async function POST(request: NextRequest) {
         descuentos_cliente, otros_costos, costo_total
       ) VALUES (
         ${acrId},
-        ${costoCorreccion}, ${costoPlanAccion}, ${costoPlanSeguimiento},
-        ${perdidaIngresos}, ${multasSanciones}, ${otrosCostosInternos},
-        ${descuentosCliente}, ${otrosCostos}, ${costoTotal}
+        ${toSafeNumber(costoCorreccion)}, ${toSafeNumber(costoPlanAccion)}, ${toSafeNumber(costoPlanSeguimiento)},
+        ${toSafeNumber(perdidaIngresos)}, ${toSafeNumber(multasSanciones)}, ${toSafeNumber(otrosCostosInternos)},
+        ${toSafeNumber(descuentosCliente)}, ${toSafeNumber(otrosCostos)}, ${costoTotal}
       )
     `;
 

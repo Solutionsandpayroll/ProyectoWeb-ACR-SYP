@@ -1,6 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { sql } from '@/lib/db';
 
+const toSafeNumber = (value: unknown): number => {
+  if (typeof value === 'number') return Number.isFinite(value) ? value : 0;
+  if (typeof value === 'string') {
+    const normalized = value.trim().replace(',', '.');
+    if (!normalized) return 0;
+    const parsed = Number(normalized);
+    return Number.isFinite(parsed) ? parsed : 0;
+  }
+  return 0;
+};
+
 // ─── GET: fetch a single ACR with all related data ───────────────────────
 export async function GET(
   _request: NextRequest,
@@ -58,7 +69,6 @@ export async function GET(
         registro,
         actividades_correccion,
         causas: {
-          analisis:   causas_acr?.analisis ?? null,
           inmediatas: causas_inmediatas.map((c: Record<string, unknown>) => c.descripcion as string),
           raiz:       causas_raiz.map((c: Record<string, unknown>) => c.descripcion as string),
         },
@@ -95,7 +105,6 @@ export async function PUT(
       descripcion,
       estado,
       actividadesCorreccion = [],
-      analisisCausas,
       causasInmediatas = [],
       causasRaiz = [],
       actividadesPlan = [],
@@ -129,8 +138,8 @@ export async function PUT(
       const act = actividadesCorreccion[i];
       if (!act.actividad?.trim()) continue;
       const [actRow] = await sql`
-        INSERT INTO actividades_correccion (acr_id, orden, actividad, recursos, costo_total)
-        VALUES (${id}, ${i + 1}, ${act.actividad}, ${act.recursos ?? []}, ${act.costoTotal ?? 0})
+        INSERT INTO actividades_correccion (acr_id, orden, actividad, recursos, costo_total, evidencia, observaciones)
+        VALUES (${id}, ${i + 1}, ${act.actividad}, ${act.recursos ?? []}, ${act.costoTotal ?? 0}, ${act.evidencia ?? null}, ${act.observaciones ?? null})
         RETURNING id
       `;
       for (let j = 0; j < (act.responsables ?? []).length; j++) {
@@ -142,16 +151,13 @@ export async function PUT(
           VALUES
             (${actRow.id}, ${j + 1},
              ${resp.nombre ?? null}, ${resp.cargo ?? null},
-             ${resp.horas  ?? 0},   ${resp.fechaInicio ?? null},
-             ${resp.fechaFin ?? null}, ${resp.costo ?? 0})
+             ${toSafeNumber(resp.horas)},   ${resp.fechaInicio ?? null},
+             ${resp.fechaFin ?? null}, ${toSafeNumber(resp.costo)})
         `;
       }
     }
 
     // ── Section 3: update causes ──────────────────────────────────────────
-    await sql`
-      UPDATE causas_acr SET analisis = ${analisisCausas ?? null} WHERE acr_id = ${id}
-    `;
     await sql`DELETE FROM causas_inmediatas WHERE acr_id = ${id}`;
     for (let i = 0; i < causasInmediatas.length; i++) {
       if (causasInmediatas[i]?.trim()) {
@@ -182,8 +188,8 @@ export async function PUT(
       const act = actividadesPlan[i];
       if (!act.descripcion?.trim()) continue;
       const [planRow] = await sql`
-        INSERT INTO actividades_plan (acr_id, orden, descripcion, causas_asociadas, costo_total)
-        VALUES (${id}, ${i + 1}, ${act.descripcion}, ${act.causasAsociadas ?? []}, ${act.costoTotal ?? 0})
+        INSERT INTO actividades_plan (acr_id, orden, descripcion, causas_asociadas, costo_total, evidencia, observaciones)
+        VALUES (${id}, ${i + 1}, ${act.descripcion}, ${act.causasAsociadas ?? []}, ${act.costoTotal ?? 0}, ${act.evidencia ?? null}, ${act.observaciones ?? null})
         RETURNING id
       `;
       for (let k = 0; k < (act.responsables ?? []).length; k++) {
@@ -194,9 +200,9 @@ export async function PUT(
           VALUES
             (${planRow.id}, 'ejecucion',
              ${r.nombreEjecucion      ?? null}, ${r.cargoEjecucion      ?? null},
-             ${r.horasEjecucion       ?? 0},
+             ${toSafeNumber(r.horasEjecucion)},
              ${r.fechaInicioEjecucion ?? null}, ${r.fechaFinEjecucion   ?? null},
-             ${r.costoEjecucion       ?? 0},    'Abierta')
+             ${toSafeNumber(r.costoEjecucion)},    'Abierta')
         `;
         await sql`
           INSERT INTO responsables_plan
@@ -204,9 +210,9 @@ export async function PUT(
           VALUES
             (${planRow.id}, 'seguimiento',
              ${r.nombreSeguimiento ?? null}, ${r.cargoSeguimiento ?? null},
-             ${r.horasSeguimiento  ?? 0},
+             ${toSafeNumber(r.horasSeguimiento)},
              ${r.fechaSeguimiento  ?? null}, ${r.fechaSeguimiento  ?? null},
-             ${r.costoSeguimiento  ?? 0},   ${r.estadoSeguimiento ?? 'Abierta'})
+             ${toSafeNumber(r.costoSeguimiento)},   ${r.estadoSeguimiento ?? 'Abierta'})
         `;
       }
     }
@@ -224,9 +230,9 @@ export async function PUT(
     } = costosAsociados;
 
     const costoTotal =
-      Number(costoCorreccion) + Number(costoPlanAccion) + Number(costoPlanSeguimiento) +
-      Number(perdidaIngresos) + Number(multasSanciones) + Number(otrosCostosInternos) +
-      Number(descuentosCliente) + Number(otrosCostos);
+      toSafeNumber(costoCorreccion) + toSafeNumber(costoPlanAccion) + toSafeNumber(costoPlanSeguimiento) +
+      toSafeNumber(perdidaIngresos) + toSafeNumber(multasSanciones) + toSafeNumber(otrosCostosInternos) +
+      toSafeNumber(descuentosCliente) + toSafeNumber(otrosCostos);
 
     // Upsert in case row doesn't exist
     await sql`
@@ -235,9 +241,9 @@ export async function PUT(
          perdida_ingresos, multas_sanciones, otros_costos_internos,
          descuentos_cliente, otros_costos, costo_total)
       VALUES
-        (${id}, ${costoCorreccion}, ${costoPlanAccion}, ${costoPlanSeguimiento},
-         ${perdidaIngresos}, ${multasSanciones}, ${otrosCostosInternos},
-         ${descuentosCliente}, ${otrosCostos}, ${costoTotal})
+        (${id}, ${toSafeNumber(costoCorreccion)}, ${toSafeNumber(costoPlanAccion)}, ${toSafeNumber(costoPlanSeguimiento)},
+        ${toSafeNumber(perdidaIngresos)}, ${toSafeNumber(multasSanciones)}, ${toSafeNumber(otrosCostosInternos)},
+        ${toSafeNumber(descuentosCliente)}, ${toSafeNumber(otrosCostos)}, ${costoTotal})
       ON CONFLICT (acr_id) DO UPDATE SET
         costo_correccion      = EXCLUDED.costo_correccion,
         costo_plan_accion     = EXCLUDED.costo_plan_accion,
@@ -254,5 +260,78 @@ export async function PUT(
   } catch (error) {
     console.error('PUT /api/acr/[id] error:', error);
     return NextResponse.json({ error: 'Error al actualizar el registro' }, { status: 500 });
+  }
+}
+
+// ─── DELETE: Archive ACR with all related data ─────────────────────────────
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const { id: idStr } = await params;
+  const id = Number(idStr);
+  if (isNaN(id)) return NextResponse.json({ error: 'ID inválido' }, { status: 400 });
+
+  try {
+    const body = await request.json().catch(() => ({}));
+    const { razonEliminacion } = body;
+
+    // 1. Fetch main record
+    const [registro] = await sql`SELECT * FROM acr_registros WHERE id = ${id}`;
+    if (!registro) {
+      return NextResponse.json({ error: 'Registro no encontrado' }, { status: 404 });
+    }
+
+    // 2. Archive to acr_eliminadas
+    await sql`
+      INSERT INTO acr_eliminadas
+        (acr_original_id, consecutivo, fuente, proceso, cliente, fecha_apertura, 
+         fecha_limite, tipo_accion, tratamiento, evaluacion_riesgo, descripcion, 
+         estado, datos_completos, razon_eliminacion, created_at, updated_at)
+      VALUES
+        (${id}, ${registro.consecutivo}, ${registro.fuente}, ${registro.proceso},
+         ${registro.cliente}, ${registro.fecha_apertura}, ${registro.fecha_limite},
+         ${registro.tipo_accion}, ${registro.tratamiento}, ${registro.evaluacion_riesgo},
+         ${registro.descripcion}, ${registro.estado}, 
+         ${JSON.stringify(registro)},
+         ${razonEliminacion || 'Sin especificar'},
+         ${registro.created_at}, ${registro.updated_at})
+    `;
+
+    // 3. Delete all related data (order matters due to FKs)
+    // Delete responsables_plan
+    const actPlan = await sql`SELECT id FROM actividades_plan WHERE acr_id = ${id}`;
+    for (const ap of actPlan) {
+      await sql`DELETE FROM responsables_plan WHERE actividad_plan_id = ${ap.id}`;
+    }
+    // Delete actividades_plan
+    await sql`DELETE FROM actividades_plan WHERE acr_id = ${id}`;
+
+    // Delete responsables_correccion
+    const actCorr = await sql`SELECT id FROM actividades_correccion WHERE acr_id = ${id}`;
+    for (const ac of actCorr) {
+      await sql`DELETE FROM responsables_correccion WHERE actividad_id = ${ac.id}`;
+    }
+    // Delete actividades_correccion
+    await sql`DELETE FROM actividades_correccion WHERE acr_id = ${id}`;
+
+    // Delete causes
+    await sql`DELETE FROM causas_inmediatas WHERE acr_id = ${id}`;
+    await sql`DELETE FROM causas_raiz WHERE acr_id = ${id}`;
+    await sql`DELETE FROM causas_acr WHERE acr_id = ${id}`;
+
+    // Delete costs
+    await sql`DELETE FROM costos_asociados WHERE acr_id = ${id}`;
+
+    // Delete control seguimiento
+    await sql`DELETE FROM control_acciones_seguimiento WHERE acr_id = ${id}`;
+
+    // Delete main ACR
+    await sql`DELETE FROM acr_registros WHERE id = ${id}`;
+
+    return NextResponse.json({ success: true, mensajeEliminado: `ACR "${registro.consecutivo}" eliminado y archivado correctamente` });
+  } catch (error) {
+    console.error('DELETE /api/acr/[id] error:', error);
+    return NextResponse.json({ error: 'Error al eliminar el registro' }, { status: 500 });
   }
 }

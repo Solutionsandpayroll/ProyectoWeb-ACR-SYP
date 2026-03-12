@@ -146,7 +146,7 @@ export default function HistorialAcrPage() {
                 <button
                   key={a}
                   onClick={() => setFilterAnio(a)}
-                  className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-medium border transition ${
+                  className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-medium border transition cursor-pointer ${
                     filterAnio === a
                       ? "bg-[#105789] text-white border-[#105789] shadow-sm"
                       : "bg-white text-slate-600 border-slate-300 hover:border-[#105789] hover:text-[#105789]"
@@ -186,7 +186,7 @@ export default function HistorialAcrPage() {
               <button
                 key={s}
                 onClick={() => setFilterStatus(s)}
-                className={`px-3.5 py-2.5 rounded-lg text-sm font-medium border transition ${
+                className={`px-3.5 py-2.5 rounded-lg text-sm font-medium border transition cursor-pointer ${
                   filterStatus === s
                     ? "bg-[#105789] text-white border-[#105789] shadow-sm"
                     : "bg-white text-slate-600 border-slate-300 hover:border-blue-300"

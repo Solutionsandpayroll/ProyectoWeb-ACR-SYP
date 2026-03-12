@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Image from "next/image";
+import EvidenciaUpload from "@/components/EvidenciaUpload";
 import Header from "@/components/Header";
 
 // â”€â”€â”€ Salary Table â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -37,6 +38,13 @@ const calcCosto = (cargo: string, horas: number): number => {
   const found = CARGOS.find((c) => c.cargo === cargo);
   if (!found || !horas) return 0;
   return Math.round((found.salario / 180) * horas);
+};
+
+const parseDecimalInput = (value: string): number | "" => {
+  const normalized = value.trim().replace(",", ".");
+  if (!normalized) return "";
+  const parsed = Number(normalized);
+  return Number.isFinite(parsed) ? parsed : "";
 };
 
 // â”€â”€â”€ Option Lists â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -95,6 +103,8 @@ interface RespCorr {
 interface ActCorr {
   id: number; actividad: string; recursos: string[]; costo_total: number;
   responsables: RespCorr[];
+  evidencia: string | null;
+  observaciones: string | null;
 }
 interface RespPlanRow {
   nombre: string | null; cargo: string | null;
@@ -104,6 +114,8 @@ interface ActPlan {
   id: number; descripcion: string; causas_asociadas: string[]; costo_total: number;
   responsables_ejecucion:  RespPlanRow[];
   responsables_seguimiento: RespPlanRow[];
+  evidencia: string | null;
+  observaciones: string | null;
 }
 interface ApiData {
   registro: {
@@ -113,7 +125,7 @@ interface ApiData {
     descripcion: string | null; estado: string; created_at: string;
   };
   actividades_correccion: ActCorr[];
-  causas: { analisis: string | null; inmediatas: string[]; raiz: string[] };
+  causas: { inmediatas: string[]; raiz: string[] };
   actividades_plan: ActPlan[];
   costos: {
     costo_correccion: number; costo_plan_accion: number; costo_plan_seguimiento: number;
@@ -127,7 +139,7 @@ type CorrRespEdit = {
   nombre: string; cargo: string; horas: number | "";
   fechaInicio: string; fechaFin: string;
 };
-type CorrActEdit = { actividad: string; recursos: string[]; responsables: CorrRespEdit[] };
+type CorrActEdit = { actividad: string; recursos: string[]; responsables: CorrRespEdit[]; evidencia: string; observaciones: string };
 
 type PlanRespEdit = {
   nombreEjecucion: string; cargoEjecucion: string; horasEjecucion: number | "";
@@ -135,7 +147,7 @@ type PlanRespEdit = {
   nombreSeguimiento: string; cargoSeguimiento: string; horasSeguimiento: number | "";
   fechaSeguimiento: string; estadoSeguimiento: string;
 };
-type PlanActEdit = { descripcion: string; causasAsociadas: string[]; responsables: PlanRespEdit[] };
+type PlanActEdit = { descripcion: string; causasAsociadas: string[]; responsables: PlanRespEdit[]; evidencia: string; observaciones: string };
 
 type EditData = {
   fuente: string; proceso: string; cliente: string;
@@ -143,7 +155,7 @@ type EditData = {
   tipoAccion: string; tratamiento: string; evaluacionRiesgo: string;
   descripcion: string; estado: string;
   actividadesCorreccion: CorrActEdit[];
-  analisisCausas: string; causasInmediatas: string[]; causasRaiz: string[];
+  causasInmediatas: string[]; causasRaiz: string[];
   actividadesPlan: PlanActEdit[];
   costosExtra: {
     perdidaIngresos: number; multasSanciones: number; otrosCostosInternos: number;
@@ -153,14 +165,14 @@ type EditData = {
 
 // â”€â”€â”€ Factories â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const newCorrResp = (): CorrRespEdit => ({ nombre: "", cargo: "", horas: "", fechaInicio: "", fechaFin: "" });
-const newCorrAct  = (): CorrActEdit  => ({ actividad: "", recursos: [], responsables: [newCorrResp()] });
+const newCorrAct  = (): CorrActEdit  => ({ actividad: "", recursos: [], responsables: [newCorrResp()], evidencia: "", observaciones: "" });
 const newPlanResp = (): PlanRespEdit => ({
   nombreEjecucion: "", cargoEjecucion: "", horasEjecucion: "",
   fechaInicioEjecucion: "", fechaFinEjecucion: "",
   nombreSeguimiento: "", cargoSeguimiento: "", horasSeguimiento: "",
   fechaSeguimiento: "", estadoSeguimiento: "Abierta",
 });
-const newPlanAct = (): PlanActEdit => ({ descripcion: "", causasAsociadas: [], responsables: [newPlanResp()] });
+const newPlanAct = (): PlanActEdit => ({ descripcion: "", causasAsociadas: [], responsables: [newPlanResp()], evidencia: "", observaciones: "" });
 
 // â”€â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const fmtCOP = (n: number) =>
@@ -189,6 +201,8 @@ function initEditData(d: ApiData): EditData {
       ? d.actividades_correccion.map((a) => ({
           actividad: a.actividad,
           recursos:  Array.isArray(a.recursos) ? a.recursos : [],
+          evidencia:  a.evidencia  ?? "",
+          observaciones: a.observaciones ?? "",
           responsables: a.responsables.map((r) => ({
             nombre:     r.nombre ?? "",
             cargo:      r.cargo  ?? "",
@@ -199,7 +213,6 @@ function initEditData(d: ApiData): EditData {
         }))
       : [newCorrAct()],
 
-    analisisCausas: d.causas.analisis ?? "",
     causasInmediatas: d.causas.inmediatas.length > 0 ? [...d.causas.inmediatas, ""] : ["", ""],
     causasRaiz:       d.causas.raiz.length > 0       ? [...d.causas.raiz, ""]       : ["", ""],
 
@@ -211,6 +224,8 @@ function initEditData(d: ApiData): EditData {
           return {
             descripcion:     a.descripcion,
             causasAsociadas: Array.isArray(a.causas_asociadas) ? a.causas_asociadas : [],
+            evidencia:       a.evidencia       ?? "",
+            observaciones:   a.observaciones   ?? "",
             responsables: Array.from({ length: count }, (_, k) => ({
               nombreEjecucion:      ejec[k]?.nombre ?? "",
               cargoEjecucion:       ejec[k]?.cargo  ?? "",
@@ -289,6 +304,18 @@ export default function AcrDetailPage() {
   const [saving,     setSaving]     = useState(false);
   const [saveError,  setSaveError]  = useState<string | null>(null);
   const [saveOk,     setSaveOk]     = useState(false);
+  const [estadoError, setEstadoError] = useState<string | null>(null);
+  const [translations, setTranslations] = useState<Record<string, string> | null>(null);
+  const [translating,  setTranslating]  = useState(false);
+  const [translateError, setTranslateError] = useState<string | null>(null);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deletingAcr, setDeletingAcr] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [deleteReason, setDeleteReason] = useState("");
+
+  // Helper: returns translated text if available, otherwise the original
+  const tr = (key: string, val: string | null | undefined): string =>
+    translations?.[key] ?? val ?? "";
 
   // â”€â”€ Fetch â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const fetchData = useCallback(async () => {
@@ -310,9 +337,81 @@ export default function AcrDetailPage() {
   const handleEdit = () => {
     if (!data) return;
     setEditData(initEditData(data));
-    setSaveError(null); setSaveOk(false); setIsEditing(true);
+    setSaveError(null); setSaveOk(false); setIsEditing(true); setEstadoError(null);
   };
-  const handleCancel = () => { setIsEditing(false); setSaveError(null); };
+  const handleCancel = () => { setIsEditing(false); setSaveError(null); setEstadoError(null); };
+
+  const handleDelete = async () => {
+    if (!data) return;
+    if (!deleteReason.trim()) { setDeleteError('Debes indicar la razón de eliminación.'); return; }
+    setDeletingAcr(true);
+    setDeleteError(null);
+    try {
+      const response = await fetch(`/api/acr/${id}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ razonEliminacion: deleteReason.trim() })
+      });
+      if (!response.ok) throw new Error('Error al eliminar el ACR');
+      setShowDeleteModal(false);
+      // Redirect to historial after 1 second
+      setTimeout(() => router.push('/dashboard/historial-acr'), 1000);
+    } catch (error) {
+      setDeleteError(error instanceof Error ? error.message : 'Error desconocido');
+    } finally {
+      setDeletingAcr(false);
+    }
+  };
+
+  // ── Translation ───────────────────────────────────────────────────────────
+  const handleTranslate = async () => {
+    if (!data) return;
+    if (translations) { setTranslations(null); setTranslateError(null); return; }
+    setTranslating(true);
+    setTranslateError(null);
+    const reg = data.registro;
+    // Build a keyed list of texts to translate
+    const entries: { key: string; text: string }[] = [
+      { key: "descripcion",      text: reg.descripcion      ?? "" },
+      { key: "tratamiento",      text: reg.tratamiento      ?? "" },
+      { key: "evaluacionRiesgo", text: reg.evaluacion_riesgo ?? "" },
+      { key: "fuente",           text: reg.fuente            ?? "" },
+      { key: "proceso",          text: reg.proceso           ?? "" },
+      { key: "cliente",          text: reg.cliente           ?? "" },
+      { key: "tipoAccion",       text: reg.tipo_accion       ?? "" },
+      ...data.causas.inmediatas.map((c, i) => ({ key: `causaInm_${i}`, text: c })),
+      ...data.causas.raiz.map((c, i) => ({ key: `causaRaiz_${i}`, text: c })),
+      ...data.actividades_correccion.flatMap((a, i) => [
+        { key: `corrAct_${i}`,      text: a.actividad    ?? "" },
+        { key: `corrActObs_${i}`,   text: a.observaciones ?? "" },
+      ]),
+      ...data.actividades_plan.flatMap((a, i) => [
+        { key: `planAct_${i}`,      text: a.descripcion  ?? "" },
+        { key: `planActObs_${i}`,   text: a.observaciones ?? "" },
+        ...(a.causas_asociadas ?? []).map((c: string, j: number) => ({
+          key: `planCausa_${i}_${j}`, text: c,
+        })),
+      ]),
+    ];
+    const keys  = entries.map((e) => e.key);
+    const texts = entries.map((e) => e.text);
+    try {
+      const res = await fetch("/api/translate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ texts, target: "EN-US" }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error ?? "Error al traducir");
+      const map: Record<string, string> = {};
+      keys.forEach((k, i) => { map[k] = json.results[i] ?? texts[i]; });
+      setTranslations(map);
+    } catch (e) {
+      setTranslateError(e instanceof Error ? e.message : "Error al traducir");
+    } finally {
+      setTranslating(false);
+    }
+  };
 
   // â”€â”€ Calculated totals (reactive) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const totalCorreccion = useMemo(() => {
@@ -366,6 +465,21 @@ export default function AcrDetailPage() {
   // â”€â”€ Save â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const handleSave = async () => {
     if (!editData) return;
+    // Block saving as Cerrada if any activity is missing both evidencia and observaciones
+    if (editData.estado === "Cerrada") {
+      const corrIncompleta = editData.actividadesCorreccion.some(
+        (a) => !a.evidencia?.trim() && !a.observaciones?.trim()
+      );
+      const planIncompleta = editData.actividadesPlan.some(
+        (a) => !a.evidencia?.trim() && !a.observaciones?.trim()
+      );
+      if (corrIncompleta || planIncompleta) {
+        setSaveError(
+          "No se puede guardar como Cerrada: todas las actividades deben tener al menos Evidencia o Observaciones completadas."
+        );
+        return;
+      }
+    }
     setSaving(true); setSaveError(null); setSaveOk(false);
     try {
       const payload = {
@@ -384,6 +498,8 @@ export default function AcrDetailPage() {
           .map((a) => ({
             actividad:  a.actividad,
             recursos:   a.recursos,
+            evidencia:  a.evidencia  || null,
+            observaciones: a.observaciones || null,
             costoTotal: a.responsables.reduce((s, r) => s + calcCosto(r.cargo, Number(r.horas) || 0), 0),
             responsables: a.responsables.map((r) => ({
               nombre:     r.nombre     || null,
@@ -394,7 +510,6 @@ export default function AcrDetailPage() {
               costo:       calcCosto(r.cargo, Number(r.horas) || 0),
             })),
           })),
-        analisisCausas:   editData.analisisCausas || null,
         causasInmediatas: editData.causasInmediatas.filter((c) => c.trim()),
         causasRaiz:       editData.causasRaiz.filter((c) => c.trim()),
         actividadesPlan: editData.actividadesPlan
@@ -402,6 +517,8 @@ export default function AcrDetailPage() {
           .map((a) => ({
             descripcion:     a.descripcion,
             causasAsociadas: a.causasAsociadas,
+            evidencia:       a.evidencia       || null,
+            observaciones:   a.observaciones   || null,
             costoTotal: a.responsables.reduce(
               (s, r) =>
                 s +
@@ -508,7 +625,7 @@ export default function AcrDetailPage() {
       <Header title="Detalle ACR" subtitle="Error" />
       <div className="flex-1 flex items-center justify-center flex-col gap-3">
         <p className="text-red-600 font-medium">{fetchError ?? "Registro no encontrado"}</p>
-        <button onClick={() => router.back()} className="text-sm text-[#105789] hover:underline">← Volver al historial</button>
+        <button onClick={() => router.back()} className="text-sm text-[#105789] hover:underline cursor-pointer">← Volver al historial</button>
       </div>
     </div>
   );
@@ -536,7 +653,7 @@ export default function AcrDetailPage() {
         <div className="flex items-center justify-between mb-5 flex-wrap gap-3">
           <button
             onClick={() => router.back()}
-            className="no-print flex items-center gap-1.5 text-sm text-slate-500 hover:text-[#105789] transition-colors font-medium"
+            className="no-print flex items-center gap-1.5 text-sm text-slate-500 hover:text-[#105789] transition-colors font-medium cursor-pointer"
           >
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
@@ -553,8 +670,21 @@ export default function AcrDetailPage() {
             {!isEditing ? (
               <>
                 <button
+                  onClick={handleTranslate}
+                  disabled={translating}
+                  className="no-print flex items-center gap-2 bg-white text-slate-700 text-sm font-semibold px-4 py-2 rounded-lg border border-slate-300 hover:bg-slate-50 transition-colors shadow-sm disabled:opacity-60 cursor-pointer"
+                  title={translations ? "Ver en español" : "Translate to English (DeepL)"}
+                >
+                  {translating ? (
+                    <span className="w-4 h-4 border-2 border-slate-400 border-t-transparent rounded-full animate-spin inline-block" />
+                  ) : (
+                    <span className="text-base leading-none">🌐</span>
+                  )}
+                  {translating ? "Traduciendo..." : translations ? "Ver en español" : "Translate to English"}
+                </button>
+                <button
                   onClick={() => window.print()}
-                  className="no-print flex items-center gap-2 bg-white text-slate-700 text-sm font-semibold px-4 py-2 rounded-lg border border-slate-300 hover:bg-slate-50 transition-colors shadow-sm"
+                  className="no-print flex items-center gap-2 bg-white text-slate-700 text-sm font-semibold px-4 py-2 rounded-lg border border-slate-300 hover:bg-slate-50 transition-colors shadow-sm cursor-pointer"
                 >
                   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -563,12 +693,21 @@ export default function AcrDetailPage() {
                 </button>
                 <button
                   onClick={handleEdit}
-                  className="no-print flex items-center gap-2 bg-[#105789] text-white text-sm font-semibold px-4 py-2 rounded-lg hover:bg-[#0d3f6e] transition-colors shadow-sm"
+                  className="no-print flex items-center gap-2 bg-[#105789] text-white text-sm font-semibold px-4 py-2 rounded-lg hover:bg-[#0d3f6e] transition-colors shadow-sm cursor-pointer"
                 >
                   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                   </svg>
                   Editar ACR
+                </button>
+                <button
+                  onClick={() => setShowDeleteModal(true)}
+                  className="no-print flex items-center gap-2 bg-red-600 text-white text-sm font-semibold px-4 py-2 rounded-lg hover:bg-red-700 transition-colors shadow-sm cursor-pointer"
+                >
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                  </svg>
+                  Eliminar ACR
                 </button>
               </>
             ) : (
@@ -592,6 +731,13 @@ export default function AcrDetailPage() {
         {saveError && (
           <div className="mb-4 px-4 py-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
             {saveError}
+          </div>
+        )}
+
+        {translateError && (
+          <div className="mb-4 px-4 py-3 bg-amber-50 border border-amber-200 rounded-lg text-amber-700 text-sm flex items-center gap-2">
+            <span>⚠️</span>
+            <span>{translateError}</span>
           </div>
         )}
 
@@ -621,13 +767,38 @@ export default function AcrDetailPage() {
             </div>
             <div className="flex items-center gap-3">
               {isEditing && ed ? (
-                <select
-                  value={ed.estado}
-                  onChange={(e) => setED({ estado: e.target.value })}
-                  className="text-sm font-semibold border-2 border-white/30 bg-white/10 text-white rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-white/50"
-                >
-                  {ESTADOS_ACR.map((s) => <option key={s} className="text-slate-800">{s}</option>)}
-                </select>
+                <>
+                  <select
+                    value={ed.estado}
+                    onChange={(e) => {
+                      const next = e.target.value;
+                      if (next === "Cerrada") {
+                        const corrIncompleta = ed.actividadesCorreccion.some(
+                          (a) => !a.evidencia?.trim() && !a.observaciones?.trim()
+                        );
+                        const planIncompleta = ed.actividadesPlan.some(
+                          (a) => !a.evidencia?.trim() && !a.observaciones?.trim()
+                        );
+                        if (corrIncompleta || planIncompleta) {
+                          setEstadoError(
+                            "Para cerrar el ACR todas las actividades deben tener al menos Evidencia o Observaciones completadas."
+                          );
+                          return;
+                        }
+                      }
+                      setEstadoError(null);
+                      setED({ estado: next });
+                    }}
+                    className="text-sm font-semibold border-2 border-white/30 bg-white/10 text-white rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-white/50"
+                  >
+                    {ESTADOS_ACR.map((s) => <option key={s} className="text-slate-800">{s}</option>)}
+                  </select>
+                  {estadoError && (
+                    <p className="text-xs text-amber-200 bg-amber-900/40 border border-amber-400/40 rounded px-2 py-1 max-w-xs text-center leading-snug">
+                      {estadoError}
+                    </p>
+                  )}
+                </>
               ) : (
                 <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-bold border ${estadoColor[reg.estado] ?? "bg-slate-100 text-slate-600"}`}>
                   {reg.estado}
@@ -701,14 +872,15 @@ export default function AcrDetailPage() {
             ) : (
               <>
                 <Field label="Consecutivo" value={reg.consecutivo} />
-                <Field label="Proceso" value={reg.proceso} />
+                <Field label="Proceso" value={tr("proceso", reg.proceso)} />
                 <Field label="Fecha de apertura" value={fmtDate(reg.fecha_apertura)} />
-                <Field label="Fecha límite" value={fmtDate(reg.fecha_limite)} />
-                <Field label="Fuente" value={reg.fuente} />
-                <Field label="Cliente" value={reg.cliente} />
-                <Field label="Tipo de acción" value={reg.tipo_accion} />
-                <Field label="Evaluación del riesgo" value={reg.evaluacion_riesgo} />
-                <Field label="Tratamiento" value={reg.tratamiento} />
+                <Field label="Fuente" value={tr("fuente", reg.fuente)} />
+                <Field label="Cliente" value={tr("cliente", reg.cliente)} />
+                <Field label="Tipo de acción" value={tr("tipoAccion", reg.tipo_accion)} />
+                <Field label="Evaluación del riesgo" value={tr("evaluacionRiesgo", reg.evaluacion_riesgo)} />
+                {reg.fuente === "Salidas no conformes" && (
+                  <Field label="Tratamiento" value={tr("tratamiento", reg.tratamiento)} />
+                )}
               </>
             )}
           </div>
@@ -726,7 +898,7 @@ export default function AcrDetailPage() {
               />
             ) : (
               <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-wrap">
-                {reg.descripcion ?? <span className="text-slate-300">Sin descripción</span>}
+                {tr("descripcion", reg.descripcion) || <span className="text-slate-300">Sin descripción</span>}
               </p>
             )}
           </div>
@@ -788,7 +960,7 @@ export default function AcrDetailPage() {
                                   <CargoSelect value={r.cargo} onChange={(v) => updCorrResp(ai, ri, { cargo: v })} />
                                 </td>
                                 <td className="px-2 py-1.5">
-                                  <input type="number" step="0.25" min="0" className="w-16 text-xs border border-slate-200 rounded px-2 py-1 focus:outline-none focus:border-[#105789]" value={r.horas} onChange={(e) => updCorrResp(ai, ri, { horas: e.target.value === "" ? "" : Number(e.target.value) })} />
+                                  <input type="number" step="any" min="0" className="w-16 text-xs border border-slate-200 rounded px-2 py-1 focus:outline-none focus:border-[#105789]" value={r.horas} onChange={(e) => updCorrResp(ai, ri, { horas: parseDecimalInput(e.target.value) })} />
                                 </td>
                                 <td className="px-2 py-1.5">
                                   <input type="date" className="text-xs border border-slate-200 rounded px-2 py-1 focus:outline-none focus:border-[#105789]" value={r.fechaInicio} onChange={(e) => updCorrResp(ai, ri, { fechaInicio: e.target.value })} />
@@ -815,6 +987,20 @@ export default function AcrDetailPage() {
                           Subtotal corrección: <span className="font-mono font-semibold text-slate-700">{fmtCOP(act.responsables.reduce((s, r) => s + calcCosto(r.cargo, Number(r.horas) || 0), 0))}</span>
                         </p>
                       )}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1">
+                        <div>
+                          <label className={labelCls}>Evidencia</label>
+                          <EvidenciaUpload
+                            value={act.evidencia}
+                            onChange={(url) => updCorrAct(ai, { evidencia: url })}
+                          />
+                        </div>
+                        <div>
+                          <label className={labelCls}>Observaciones</label>
+                          <input className={inputCls} type="text" placeholder="Observaciones adicionales..."
+                            value={act.observaciones} onChange={(e) => updCorrAct(ai, { observaciones: e.target.value })} />
+                        </div>
+                      </div>
                     </div>
                   </div>
                 ))}
@@ -826,10 +1012,10 @@ export default function AcrDetailPage() {
               data.actividades_correccion.length === 0
                 ? <p className="text-sm text-slate-400 italic">Sin actividades de corrección registradas</p>
                 : <div className="space-y-4">
-                    {data.actividades_correccion.map((act) => (
+                    {data.actividades_correccion.map((act, ai) => (
                       <div key={act.id} className="border border-slate-200 rounded-lg overflow-hidden">
                         <div className="bg-slate-50 px-4 py-2.5 border-b border-slate-200 flex items-start justify-between">
-                          <p className="text-sm font-semibold text-slate-800">{act.actividad}</p>
+                          <p className="text-sm font-semibold text-slate-800">{tr(`corrAct_${ai}`, act.actividad)}</p>
                           {Array.isArray(act.recursos) && act.recursos.length > 0 && (
                             <span className="text-xs text-slate-500 ml-3 shrink-0">{act.recursos.join(", ")}</span>
                           )}
@@ -857,6 +1043,34 @@ export default function AcrDetailPage() {
                             </tbody>
                           </table>
                         </div>
+                        {(act.evidencia || act.observaciones) && (
+                          <div className="px-4 py-3 border-t border-slate-100 grid grid-cols-2 gap-4">
+                            {act.evidencia && (
+                              <div>
+                                <span className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">Evidencia</span>
+                                {act.evidencia.startsWith("/uploads/") ? (
+                                  <a
+                                    href={act.evidencia}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="mt-0.5 flex items-center gap-1.5 text-sm text-[#105789] hover:underline font-medium"
+                                  >
+                                    <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15.172 7l-6.586 6.586a2 2 0 002.828 2.828L18 9.828A4 4 0 0012.172 4L5.586 10.586a6 6 0 008.485 8.485L20 13" /></svg>
+                                    {decodeURIComponent(act.evidencia.split("/").pop() ?? act.evidencia)}
+                                  </a>
+                                ) : (
+                                  <p className="text-sm text-slate-700 mt-0.5">{act.evidencia}</p>
+                                )}
+                              </div>
+                            )}
+                            {act.observaciones && (
+                              <div>
+                                <span className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">Observaciones</span>
+                                <p className="text-sm text-slate-700 mt-0.5">{tr(`corrActObs_${ai}`, act.observaciones)}</p>
+                              </div>
+                            )}
+                          </div>
+                        )}
                       </div>
                     ))}
                   </div>
@@ -868,10 +1082,6 @@ export default function AcrDetailPage() {
           <div className="px-6 py-5 border-b border-slate-200 space-y-4">
             {isEditing && ed ? (
               <>
-                <div>
-                  <label className={labelCls}>Análisis general de causas</label>
-                  <textarea rows={3} value={ed.analisisCausas} onChange={(e) => setED({ analisisCausas: e.target.value })} placeholder="Análisis general..." className={inputCls} />
-                </div>
                 <div className="grid md:grid-cols-2 gap-6">
                   <div>
                     <p className="text-xs font-bold uppercase tracking-widest text-[#105789] mb-3">Causas Inmediatas</p>
@@ -901,12 +1111,6 @@ export default function AcrDetailPage() {
               </>
             ) : (
               <>
-                {data.causas.analisis && (
-                  <div className="mb-4">
-                    <p className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-1.5">Análisis general</p>
-                    <p className="text-sm text-slate-700 whitespace-pre-wrap">{data.causas.analisis}</p>
-                  </div>
-                )}
                 <div className="grid md:grid-cols-2 gap-6">
                   <div>
                     <p className="text-xs font-bold uppercase tracking-widest text-[#105789] mb-3">Causas Inmediatas</p>
@@ -914,7 +1118,7 @@ export default function AcrDetailPage() {
                       {data.causas.inmediatas.map((c, i) => (
                         <li key={i} className="flex gap-2 text-sm text-slate-700">
                           <span className="text-xs font-bold text-slate-400 mt-0.5">{i + 1}.</span>
-                          <span>{c}</span>
+                          <span>{tr(`causaInm_${i}`, c)}</span>
                         </li>
                       ))}
                       {data.causas.inmediatas.length === 0 && <p className="text-slate-400 text-sm italic">No registradas</p>}
@@ -926,7 +1130,7 @@ export default function AcrDetailPage() {
                       {data.causas.raiz.map((c, i) => (
                         <li key={i} className="flex gap-2 text-sm text-slate-700">
                           <span className="text-xs font-bold text-red-400 mt-0.5">{i + 1}.</span>
-                          <span>{c}</span>
+                          <span>{tr(`causaRaiz_${i}`, c)}</span>
                         </li>
                       ))}
                       {data.causas.raiz.length === 0 && <p className="text-slate-400 text-sm italic">No registradas</p>}
@@ -983,7 +1187,7 @@ export default function AcrDetailPage() {
                               <div className="flex gap-2">
                                 <div className="flex-1">
                                   <label className="text-[10px] text-slate-400">Horas</label>
-                                  <input type="number" step="0.25" min="0" value={r.horasEjecucion} onChange={(e) => updPlanResp(ai, ri, { horasEjecucion: e.target.value === "" ? "" : Number(e.target.value) })} className="w-full text-xs border border-slate-200 rounded px-2 py-1 focus:outline-none focus:border-[#105789]" />
+                                  <input type="number" step="any" min="0" value={r.horasEjecucion} onChange={(e) => updPlanResp(ai, ri, { horasEjecucion: parseDecimalInput(e.target.value) })} className="w-full text-xs border border-slate-200 rounded px-2 py-1 focus:outline-none focus:border-[#105789]" />
                                 </div>
                                 <div className="flex-1">
                                   <label className="text-[10px] text-slate-400">Inicio</label>
@@ -1003,7 +1207,7 @@ export default function AcrDetailPage() {
                               <div className="flex gap-2">
                                 <div className="flex-1">
                                   <label className="text-[10px] text-slate-400">Horas</label>
-                                  <input type="number" step="0.25" min="0" value={r.horasSeguimiento} onChange={(e) => updPlanResp(ai, ri, { horasSeguimiento: e.target.value === "" ? "" : Number(e.target.value) })} className="w-full text-xs border border-slate-200 rounded px-2 py-1 focus:outline-none focus:border-[#105789]" />
+                                  <input type="number" step="any" min="0" value={r.horasSeguimiento} onChange={(e) => updPlanResp(ai, ri, { horasSeguimiento: parseDecimalInput(e.target.value) })} className="w-full text-xs border border-slate-200 rounded px-2 py-1 focus:outline-none focus:border-[#105789]" />
                                 </div>
                                 <div className="flex-1">
                                   <label className="text-[10px] text-slate-400">Fecha</label>
@@ -1024,6 +1228,20 @@ export default function AcrDetailPage() {
                       <button onClick={() => updPlanAct(ai, { responsables: [...act.responsables, newPlanResp()] })} className="text-xs text-[#105789] border border-dashed border-[#105789]/40 px-3 py-1.5 rounded hover:bg-blue-50 transition-colors">
                         + Agregar responsable
                       </button>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1">
+                        <div>
+                          <label className={labelCls}>Evidencia</label>
+                          <EvidenciaUpload
+                            value={act.evidencia}
+                            onChange={(url) => updPlanAct(ai, { evidencia: url })}
+                          />
+                        </div>
+                        <div>
+                          <label className={labelCls}>Observaciones</label>
+                          <input className={inputCls} type="text" placeholder="Observaciones adicionales..."
+                            value={act.observaciones} onChange={(e) => updPlanAct(ai, { observaciones: e.target.value })} />
+                        </div>
+                      </div>
                     </div>
                   </div>
                 ))}
@@ -1035,30 +1253,33 @@ export default function AcrDetailPage() {
               data.actividades_plan.length === 0
                 ? <p className="text-sm text-slate-400 italic">Sin actividades en el plan de acción</p>
                 : <div className="space-y-4">
-                    {data.actividades_plan.map((act) => {
+                    {data.actividades_plan.map((act, ai) => {
                       const ejec = act.responsables_ejecucion  ?? [];
                       const segu = act.responsables_seguimiento ?? [];
                       return (
                         <div key={act.id} className="border border-slate-200 rounded-lg overflow-hidden">
                           <div className="bg-slate-50 px-4 py-3 border-b border-slate-200">
-                            <p className="text-sm font-semibold text-slate-800">{act.descripcion}</p>
+                            <p className="text-sm font-semibold text-slate-800">{tr(`planAct_${ai}`, act.descripcion)}</p>
                             {Array.isArray(act.causas_asociadas) && act.causas_asociadas.length > 0 && (
                               <div className="mt-2.5 border-t border-slate-200 pt-2.5">
                                 <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-1.5">Causas asociadas</p>
                                 <ul className="space-y-1">
                                   {act.causas_asociadas.map((c, i) => {
                                     let text = c;
+                                    let trKey = `planCausa_${ai}_${i}`;
                                     if (c.startsWith("ci-")) {
                                       const idx = parseInt(c.slice(3), 10);
                                       text = data.causas.inmediatas[idx] ?? c;
+                                      trKey = `causaInm_${idx}`;
                                     } else if (c.startsWith("cr-")) {
                                       const idx = parseInt(c.slice(3), 10);
                                       text = data.causas.raiz[idx] ?? c;
+                                      trKey = `causaRaiz_${idx}`;
                                     }
                                     return (
                                       <li key={i} className="flex gap-2 text-xs text-slate-700">
                                         <span className="shrink-0 w-4 h-4 rounded-full bg-[#105789]/10 text-[#105789] font-bold flex items-center justify-center text-[9px] mt-0.5">{i + 1}</span>
-                                        <span className="leading-snug">{text}</span>
+                                        <span className="leading-snug">{tr(trKey, text)}</span>
                                       </li>
                                     );
                                   })}
@@ -1109,6 +1330,34 @@ export default function AcrDetailPage() {
                               </div>
                             </div>
                           </div>
+                          {(act.evidencia || act.observaciones) && (
+                            <div className="px-4 py-3 border-t border-slate-100 grid grid-cols-2 gap-4">
+                              {act.evidencia && (
+                                <div>
+                                  <span className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">Evidencia</span>
+                                  {act.evidencia.startsWith("/uploads/") ? (
+                                    <a
+                                      href={act.evidencia}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="mt-0.5 flex items-center gap-1.5 text-sm text-[#105789] hover:underline font-medium"
+                                    >
+                                      <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15.172 7l-6.586 6.586a2 2 0 002.828 2.828L18 9.828A4 4 0 0012.172 4L5.586 10.586a6 6 0 008.485 8.485L20 13" /></svg>
+                                      {decodeURIComponent(act.evidencia.split("/").pop() ?? act.evidencia)}
+                                    </a>
+                                  ) : (
+                                    <p className="text-sm text-slate-700 mt-0.5">{act.evidencia}</p>
+                                  )}
+                                </div>
+                              )}
+                              {act.observaciones && (
+                                <div>
+                                  <span className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">Observaciones</span>
+                                  <p className="text-sm text-slate-700 mt-0.5">{tr(`planActObs_${ai}`, act.observaciones)}</p>
+                                </div>
+                              )}
+                            </div>
+                          )}
                         </div>
                       );
                     })}
@@ -1191,6 +1440,59 @@ export default function AcrDetailPage() {
           </div>
 
         </div>
+
+        {/* Delete Confirmation Modal */}
+        {showDeleteModal && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg shadow-xl max-w-md w-96">
+              <div className="px-6 py-4 border-b border-slate-200">
+                <h2 className="text-lg font-bold text-slate-800">Eliminar ACR</h2>
+              </div>
+              <div className="px-6 py-4 space-y-3">
+                <p className="text-sm text-slate-700">
+                  ¿Está seguro que desea eliminar el ACR <strong>{data?.registro.consecutivo}</strong>?
+                </p>
+                <p className="text-xs text-slate-500">
+                  Esta acción es irreversible, pero el registro será archivado en el histórico de ACRs eliminadas para trazabilidad.
+                </p>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Razón de eliminación <span className="text-red-500">*</span></label>
+                  <textarea
+                    rows={3}
+                    value={deleteReason}
+                    onChange={(e) => setDeleteReason(e.target.value)}
+                    placeholder="Describa por qué se elimina este ACR..."
+                    className="w-full text-sm border border-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:border-red-400 resize-none"
+                  />
+                </div>
+                {deleteError && (
+                  <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded px-3 py-2">
+                    {deleteError}
+                  </div>
+                )}
+              </div>
+              <div className="px-6 py-4 border-t border-slate-200 flex gap-3 justify-end">
+                <button
+                  onClick={() => { setShowDeleteModal(false); setDeleteReason(""); setDeleteError(null); }}
+                  disabled={deletingAcr}
+                  className="px-4 py-2 text-sm font-semibold text-slate-600 border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors disabled:opacity-50"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={handleDelete}
+                  disabled={deletingAcr || !deleteReason.trim()}
+                  className="px-4 py-2 text-sm font-semibold text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50 flex items-center gap-2"
+                >
+                  {deletingAcr && (
+                    <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin inline-block" />
+                  )}
+                  {deletingAcr ? "Eliminando..." : "Eliminar"}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </main>
     </div>
   );

@@ -1,170 +1,286 @@
-import Header from "@/components/Header";
-import StatCard from "@/components/StatCard";
+"use client";
 
-const metrics = [
-  { label: "Tiempo promedio de cierre", value: "8.4 días", delta: "-1.2 días", positive: true },
-  { label: "Tasa de resolución", value: "40%", delta: "+5%", positive: true },
-  { label: "ACR con impacto económico", value: "4 / 5", delta: "", positive: true },
-  { label: "Monto promedio por ACR", value: "$6,120", delta: "+$320", positive: false },
-];
+import { useEffect, useState } from "react";
+import Header from "@/components/Header";
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  PieChart,
+  Pie,
+  Cell,
+  Legend,
+} from "recharts";
+
+// ─── Types ────────────────────────────────────────────────────────────────────
+interface KV { label: string; value: number }
+interface TableRow { proceso: string; subcategoria: string; conteo: number }
+interface AnalyticsData {
+  porTipoAccion: KV[];
+  porProceso: KV[];
+  porCliente: KV[];
+  porEstado: KV[];
+  costoPorProceso: KV[];
+  porProcesoYFuente: TableRow[];
+  totalCosto: number;
+  totalRows: number;
+}
+
+// ─── Colors ───────────────────────────────────────────────────────────────────
+const NAVY = "#1d3a6e";
+const PINK = "#e51148";
+const ESTADO_COLORS: Record<string, string> = {
+  Cerrada: NAVY,
+  Abierta: PINK,
+  Parcial: "#1d3a6e",
+};
+
+const SimpleTooltip = ({ active, payload, label }: { active?: boolean; payload?: Array<{ value: number }>; label?: string }) => {
+  if (!active || !payload?.length) return null;
+  return (
+    <div className="bg-white border border-slate-200 rounded-lg shadow-lg px-3 py-2 text-xs">
+      <p className="text-slate-500 mb-0.5">{label}</p>
+      <p className="font-semibold text-slate-800">{payload[0].value}</p>
+    </div>
+  );
+};
+
+const CostTooltip = ({ active, payload, label }: { active?: boolean; payload?: Array<{ value: number }>; label?: string }) => {
+  if (!active || !payload?.length) return null;
+  return (
+    <div className="bg-white border border-slate-200 rounded-lg shadow-lg px-3 py-2 text-xs">
+      <p className="text-slate-500 mb-0.5">{label}</p>
+      <p className="font-semibold text-slate-800">{payload[0].value} mill.</p>
+    </div>
+  );
+};
+
+function ChartCard({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5 flex flex-col">
+      <h3 className="text-sm font-semibold text-slate-700 mb-4 text-center">{title}</h3>
+      {children}
+    </div>
+  );
+}
+
+function HorizontalBar({ data, color }: { data: KV[]; color: string }) {
+  const max = Math.max(...data.map((d) => d.value), 1);
+  return (
+    <div className="space-y-1.5 flex-1">
+      {data.map((d) => (
+        <div key={d.label} className="flex items-center gap-2 text-xs">
+          <span className="w-36 text-slate-600 truncate text-right shrink-0">{d.label}</span>
+          <div className="flex-1 h-5 bg-slate-100 rounded overflow-hidden">
+            <div
+              className="h-full rounded transition-all"
+              style={{ width: `${(d.value / max) * 100}%`, backgroundColor: color }}
+            />
+          </div>
+          <span className="w-5 text-slate-500 shrink-0 text-right">{d.value}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+const renderDonutLabel = ({
+  cx, cy, midAngle, innerRadius, outerRadius, percent,
+}: {
+  cx: number; cy: number; midAngle: number;
+  innerRadius: number; outerRadius: number;
+  percent: number; name: string;
+}) => {
+  const RADIAN = Math.PI / 180;
+  const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
+  const x = cx + radius * Math.cos(-midAngle * RADIAN);
+  const y = cy + radius * Math.sin(-midAngle * RADIAN);
+  if (percent < 0.05) return null;
+  return (
+    <text x={x} y={y} fill="white" textAnchor="middle" dominantBaseline="central" fontSize={11} fontWeight={600}>
+      {`${(percent * 100).toFixed(1)}%`}
+    </text>
+  );
+};
 
 export default function PanelAnalisisPage() {
+  const [data, setData] = useState<AnalyticsData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetch("/api/panel-analisis")
+      .then((r) => {
+        if (!r.ok) throw new Error("Error al cargar datos");
+        return r.json();
+      })
+      .then(setData)
+      .catch((e: Error) => setError(e.message))
+      .finally(() => setLoading(false));
+  }, []);
+
+  const currentYear = new Date().getFullYear();
+
   return (
-    <div className="flex flex-col flex-1">
-      <Header title="Panel de Análisis" subtitle="Métricas, indicadores y reportes del sistema ACR" />
+    <div className="flex flex-col flex-1 min-h-0">
+      <Header title="Panel de Análisis" subtitle={`Tablero de Acciones Correctivas y de Mejora · ${currentYear}`} />
 
-      <main className="flex-1 p-8 space-y-8">
-        {/* KPI grid */}
-        <section>
-          <h2 className="text-sm font-semibold text-slate-500 uppercase tracking-widest mb-4">Indicadores Clave</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5">
-            <StatCard
-              title="Total ACR"
-              value="5"
-              description="Acumulado histórico"
-              accentColor="blue"
-              icon={
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                </svg>
-              }
-            />
-            <StatCard
-              title="Tasa de Resolución"
-              value="40%"
-              description="ACR cerradas vs. total"
-              accentColor="green"
-              trend={{ value: "+5%", positive: true }}
-              icon={
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-              }
-            />
-            <StatCard
-              title="Tiempo Promedio"
-              value="8.4 días"
-              description="Desde apertura hasta cierre"
-              accentColor="amber"
-              trend={{ value: "1.2 días menos", positive: true }}
-              icon={
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-              }
-            />
-            <StatCard
-              title="Impacto Total"
-              value="$30,600"
-              description="Suma de montos registrados"
-              accentColor="red"
-              trend={{ value: "$6,200", positive: false }}
-              icon={
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-              }
-            />
+      <main className="flex-1 p-6 space-y-5 overflow-auto">
+        {/* ── Dashboard header strip ─────────────────────────── */}
+        <div className="flex items-center justify-between bg-white rounded-xl border border-slate-200 shadow-sm px-6 py-4">
+          <div>
+            <p className="text-xs text-slate-400 uppercase tracking-widest font-medium">Tablero de Acciones Correctivas y de Mejora</p>
+            <p className="text-2xl font-bold text-slate-800 mt-0.5">{currentYear}</p>
           </div>
-        </section>
+          <div className="bg-slate-800 text-white rounded-xl px-6 py-3 text-right min-w-50">
+            <p className="text-xl font-bold leading-tight">
+              {loading || !data
+                ? "—"
+                : data.totalCosto >= 1_000_000
+                ? `${(data.totalCosto / 1_000_000).toLocaleString("es-CO", { minimumFractionDigits: 3, maximumFractionDigits: 3 })} mill.`
+                : `$${data.totalCosto.toLocaleString("es-CO")}`}
+            </p>
+            <p className="text-xs text-slate-300 mt-0.5">Costo total de ACR {currentYear}</p>
+          </div>
+        </div>
 
-        {/* Charts area */}
-        <section>
-          <h2 className="text-sm font-semibold text-slate-500 uppercase tracking-widest mb-4">Gráficos</h2>
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-            {/* Chart placeholder 1 */}
-            <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6">
-              <div className="flex items-center justify-between mb-4">
-                <div>
-                  <h3 className="font-semibold text-slate-800 text-sm">ACR por Estado</h3>
-                  <p className="text-xs text-slate-400 mt-0.5">Distribución Abiertas / Cerradas</p>
+        {loading && (
+          <div className="flex items-center justify-center py-20">
+            <div className="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
+            <span className="ml-3 text-slate-500 text-sm">Cargando métricas…</span>
+          </div>
+        )}
+        {error && (
+          <div className="bg-red-50 border border-red-200 rounded-xl px-5 py-4 text-sm text-red-700">{error}</div>
+        )}
+
+        {data && !loading && (
+          <>
+            {/* ── Row 1: 3 charts ───────────────────────────────── */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+              {/* Chart 1: Cantidad de acciones (vertical bar) */}
+              <ChartCard title="Cantidad de acciones">
+                <ResponsiveContainer width="100%" height={220}>
+                  <BarChart data={data.porTipoAccion} margin={{ top: 10, right: 10, left: -20, bottom: 40 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                    <XAxis dataKey="label" tick={{ fontSize: 10, fill: "#64748b" }} interval={0} angle={-15} textAnchor="end" />
+                    <YAxis tick={{ fontSize: 10, fill: "#64748b" }} allowDecimals={false} />
+                    <Tooltip content={<SimpleTooltip />} />
+                    <Bar dataKey="value" radius={[4, 4, 0, 0]}>
+                      {data.porTipoAccion.map((entry, i) => (
+                        <Cell key={entry.label} fill={i % 2 === 0 ? NAVY : PINK} />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+                <div className="flex justify-center gap-4 mt-1">
+                  {data.porTipoAccion.map((d, i) => (
+                    <div key={d.label} className="flex items-center gap-1.5 text-xs text-slate-500">
+                      <span className="w-3 h-3 rounded-sm inline-block" style={{ backgroundColor: i % 2 === 0 ? NAVY : PINK }} />
+                      {d.label}
+                    </div>
+                  ))}
                 </div>
-                <span className="text-xs px-2.5 py-1 bg-blue-50 text-blue-600 rounded-full font-medium">Feb 2025</span>
-              </div>
-              <div className="space-y-3">
-                <div>
-                  <div className="flex justify-between text-xs text-slate-500 mb-1">
-                    <span>Abiertas</span><span>3 (60%)</span>
-                  </div>
-                  <div className="h-3 bg-slate-100 rounded-full overflow-hidden">
-                    <div className="h-full bg-amber-400 rounded-full" style={{ width: "60%" }} />
-                  </div>
-                </div>
-                <div>
-                  <div className="flex justify-between text-xs text-slate-500 mb-1">
-                    <span>Cerradas</span><span>2 (40%)</span>
-                  </div>
-                  <div className="h-3 bg-slate-100 rounded-full overflow-hidden">
-                    <div className="h-full bg-emerald-400 rounded-full" style={{ width: "40%" }} />
-                  </div>
-                </div>
-              </div>
-              <div className="mt-5 pt-4 border-t border-slate-100 flex items-center gap-2 text-xs text-slate-400">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                Integra Recharts o Chart.js para visualización avanzada
-              </div>
+              </ChartCard>
+
+              {/* Chart 2: Cantidad por Proceso */}
+              <ChartCard title="Cantidad de acciones por Proceso">
+                <HorizontalBar data={data.porProceso} color={PINK} />
+              </ChartCard>
+
+              {/* Chart 3: Cantidad por Cliente */}
+              <ChartCard title="Cantidad de ACR por cliente">
+                <HorizontalBar data={data.porCliente} color={NAVY} />
+              </ChartCard>
             </div>
 
-            {/* Chart placeholder 2 */}
-            <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6">
-              <div className="flex items-center justify-between mb-4">
-                <div>
-                  <h3 className="font-semibold text-slate-800 text-sm">Impacto Económico por Mes</h3>
-                  <p className="text-xs text-slate-400 mt-0.5">Monto acumulado mensual</p>
-                </div>
-                <span className="text-xs px-2.5 py-1 bg-slate-100 text-slate-600 rounded-full font-medium">2025</span>
-              </div>
-              <div className="flex items-end gap-3 h-32 px-2">
-                {[{ month: "Nov", value: 35 }, { month: "Dic", value: 52 }, { month: "Ene", value: 28 }, { month: "Feb", value: 80 }].map((d) => (
-                  <div key={d.month} className="flex-1 flex flex-col items-center gap-1">
-                    <div className="w-full bg-blue-600 rounded-t-md opacity-80 hover:opacity-100 transition" style={{ height: `${d.value}%` }} />
-                    <span className="text-xs text-slate-400">{d.month}</span>
-                  </div>
-                ))}
-              </div>
-              <div className="mt-5 pt-4 border-t border-slate-100 flex items-center gap-2 text-xs text-slate-400">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                Conectará con datos reales vía Neon PostgreSQL
-              </div>
-            </div>
-          </div>
-        </section>
+            {/* ── Row 2: donut + cost bar + table ──────────────── */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+              {/* Chart 4: Estado (donut) */}
+              <ChartCard title="Estado de las acciones">
+                <ResponsiveContainer width="100%" height={220}>
+                  <PieChart>
+                    <Pie
+                      data={data.porEstado}
+                      dataKey="value"
+                      nameKey="label"
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={55}
+                      outerRadius={85}
+                      labelLine={false}
+                      label={renderDonutLabel}
+                    >
+                      {data.porEstado.map((entry) => (
+                        <Cell key={entry.label} fill={ESTADO_COLORS[entry.label] ?? "#94a3b8"} />
+                      ))}
+                    </Pie>
+                    <Legend
+                      iconType="square"
+                      iconSize={10}
+                      formatter={(value, entry) => {
+                        const e = entry as unknown as { payload: KV };
+                        return <span className="text-xs text-slate-600">{value} ({e.payload.value})</span>;
+                      }}
+                    />
+                    <Tooltip formatter={(v: number, name: string) => [`${v}`, name]} />
+                  </PieChart>
+                </ResponsiveContainer>
+              </ChartCard>
 
-        {/* Metrics detail */}
-        <section>
-          <h2 className="text-sm font-semibold text-slate-500 uppercase tracking-widest mb-4">Métricas Detalladas</h2>
-          <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="bg-slate-50 border-b border-slate-200">
-                  <th className="text-left px-6 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wide">Métrica</th>
-                  <th className="text-left px-6 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wide">Valor Actual</th>
-                  <th className="text-left px-6 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wide">Variación</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {metrics.map((m) => (
-                  <tr key={m.label} className="hover:bg-slate-50 transition-colors">
-                    <td className="px-6 py-3.5 text-slate-700 font-medium">{m.label}</td>
-                    <td className="px-6 py-3.5 text-slate-800 font-bold">{m.value}</td>
-                    <td className="px-6 py-3.5">
-                      {m.delta && (
-                        <span className={`text-xs font-semibold ${m.positive ? "text-emerald-600" : "text-red-500"}`}>
-                          {m.positive ? "↑" : "↓"} {m.delta}
-                        </span>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </section>
+              {/* Chart 5: Costo por Proceso */}
+              <ChartCard title="Costo por Proceso (millones)">
+                <ResponsiveContainer width="100%" height={240}>
+                  <BarChart data={data.costoPorProceso} margin={{ top: 10, right: 10, left: -10, bottom: 60 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                    <XAxis dataKey="label" tick={{ fontSize: 9, fill: "#64748b" }} interval={0} angle={-30} textAnchor="end" />
+                    <YAxis tick={{ fontSize: 10, fill: "#64748b" }} tickFormatter={(v: number) => `${v}m`} />
+                    <Tooltip content={<CostTooltip />} />
+                    <Bar dataKey="value" radius={[4, 4, 0, 0]}>
+                      {data.costoPorProceso.map((entry, i) => (
+                        <Cell key={entry.label} fill={i % 2 === 0 ? PINK : NAVY} />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </ChartCard>
+
+              {/* Table: Proceso × Subcategoría × Conteo */}
+              <ChartCard title="Proceso · Subcategoría · Recuento">
+                <div className="flex-1 overflow-auto max-h-64">
+                  <table className="w-full text-xs">
+                    <thead className="sticky top-0 bg-white">
+                      <tr className="border-b border-slate-200">
+                        <th className="text-left py-1.5 pr-2 text-slate-500 font-semibold">Proceso</th>
+                        <th className="text-left py-1.5 pr-2 text-slate-500 font-semibold">Subcategoría</th>
+                        <th className="text-right py-1.5 text-slate-500 font-semibold">No.</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {data.porProcesoYFuente.map((row, i) => (
+                        <tr key={i} className="border-b border-slate-50 hover:bg-slate-50 transition">
+                          <td className="py-1 pr-2 text-slate-700 max-w-27.5 truncate">{row.proceso}</td>
+                          <td className="py-1 pr-2 text-slate-600 max-w-32.5 truncate">{row.subcategoria}</td>
+                          <td className="py-1 text-right font-semibold text-slate-800">{row.conteo}</td>
+                        </tr>
+                      ))}
+                      <tr className="border-t-2 border-slate-300 bg-slate-50">
+                        <td className="py-1.5 pr-2 font-bold text-slate-800" colSpan={2}>Total</td>
+                        <td className="py-1.5 text-right font-bold text-slate-800">{data.totalRows}</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </ChartCard>
+            </div>
+          </>
+        )}
       </main>
     </div>
   );
 }
+

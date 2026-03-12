@@ -1,30 +1,54 @@
 @import "tailwindcss";
 
 @media print {
-  /* Force background colors and images to print */
-  * {
+  /* Preserve background colors and images */
+  *,
+  *::before,
+  *::after {
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
     color-adjust: exact !important;
+    /* Disable all animations — prevents sidebar re-animation when print dialog
+       toggles display:none ↔ flex on the sidebar wrapper */
+    animation: none !important;
+    transition: none !important;
   }
 
-  /* Hide sidebar, toolbar buttons, back button */
+  /* Hide sidebar and toolbar buttons */
   .no-print {
     display: none !important;
   }
 
-  /* Remove sidebar offset and layout constraints */
-  .ml-72 {
-    margin-left: 0 !important;
-  }
-  main {
-    max-width: 100% !important;
-    padding: 0 !important;
+  /* Explicitly hide the fixed-position sidebar so it doesn't
+     bleed its dark background onto the first print page */
+  aside {
+    display: none !important;
   }
 
   /* White background */
+  html,
   body {
     background: white !important;
+    /* Remove overflow constraints that create a blank first page */
+    overflow: visible !important;
+  }
+
+  /* overflow-x-hidden on the layout wrapper creates a stacking context
+     that renders as a blank first page in print — reset it */
+  .overflow-x-hidden {
+    overflow: visible !important;
+  }
+
+  /* Remove sidebar offset */
+  .ml-72 {
+    margin-left: 0 !important;
+  }
+
+  main {
+    max-width: 100% !important;
+    padding: 0 !important;
+    overflow: visible !important;
+    height: auto !important;
   }
 
   /* Allow document to expand to full height — remove overflow clip */
@@ -34,6 +58,7 @@
     box-shadow: none !important;
     overflow: visible !important;
     height: auto !important;
+    max-height: none !important;
   }
 
   /* Remove height constraints from wrappers */
@@ -41,13 +66,12 @@
   .min-h-screen {
     min-height: unset !important;
     height: auto !important;
+    overflow: visible !important;
   }
 
-  /* Avoid awkward page breaks inside section cards */
-  .border.rounded-lg,
-  .border.rounded-xl {
-    break-inside: avoid;
-  }
+  /* Do NOT use break-inside: avoid on large containers — it causes content
+     after them to be clipped when the section is taller than the remaining
+     page space. Only avoid breaks inside small inline elements. */
 
   /* Page margins */
   @page {

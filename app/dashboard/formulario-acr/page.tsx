@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from "react";
 import Header from "@/components/Header";
+import EvidenciaUpload from "@/components/EvidenciaUpload";
 
 // ─── Salary Table ───────────────────────────────────────────────────────────────
 const CARGOS: { cargo: string; salario: number }[] = [
@@ -35,6 +36,13 @@ const calcCosto = (cargo: string, horas: number): number => {
   const found = CARGOS.find((c) => c.cargo === cargo);
   if (!found || !horas) return 0;
   return Math.round((found.salario / 180) * horas);
+};
+
+const parseDecimalInput = (value: string): number | "" => {
+  const normalized = value.trim().replace(",", ".");
+  if (!normalized) return "";
+  const parsed = Number(normalized);
+  return Number.isFinite(parsed) ? parsed : "";
 };
 
 const fmtCurrency = (n: number) =>
@@ -102,6 +110,8 @@ interface ActividadCorreccion {
   actividad: string;
   recursos: string[];
   responsables: ResponsableCorreccion[];
+  evidencia: string;
+  observaciones: string;
 }
 
 interface ResponsablePlan {
@@ -122,6 +132,8 @@ interface ActividadPlan {
   descripcion: string;
   causasAsociadas: string[];
   responsables: ResponsablePlan[];
+  evidencia: string;
+  observaciones: string;
 }
 
 // ─── Default Factories ──────────────────────────────────────────────────────────
@@ -137,6 +149,8 @@ const newActividadCorreccion = (): ActividadCorreccion => ({
   actividad: "",
   recursos: [],
   responsables: [newResponsableCorreccion()],
+  evidencia: "",
+  observaciones: "",
 });
 
 const newResponsablePlan = (): ResponsablePlan => ({
@@ -157,6 +171,8 @@ const newActividadPlan = (): ActividadPlan => ({
   descripcion: "",
   causasAsociadas: [],
   responsables: [newResponsablePlan()],
+  evidencia: "",
+  observaciones: "",
 });
 
 // ─── Shared Style Constants ─────────────────────────────────────────────────────
@@ -296,6 +312,8 @@ export default function FormularioAcrPage() {
       {
         actividad: "Revisión y corrección inmediata de los registros afectados.",
         recursos: ["Humanos", "Tecnol\u00f3gicos"],
+        evidencia: "",
+        observaciones: "",
         responsables: [{
           nombre: pick(NOMBRES),
           cargo: cargoEj,
@@ -307,6 +325,8 @@ export default function FormularioAcrPage() {
       {
         actividad: "Comunicación formal al cliente con el informe de corrección.",
         recursos: ["Humanos"],
+        evidencia: "",
+        observaciones: "",
         responsables: [{
           nombre: pick(NOMBRES),
           cargo: pick(CARGOS.map((c) => c.cargo)),
@@ -330,6 +350,8 @@ export default function FormularioAcrPage() {
     setPlanActs([{
       descripcion: "Actualizar y socializar el procedimiento incluyendo checklist de verificación y responsables formales por etapa.",
       causasAsociadas: ["ci-0", "ci-1", "cr-0"],
+      evidencia: "",
+      observaciones: "",
       responsables: [{
         nombreEjecucion: pick(NOMBRES),
         cargoEjecucion: cargoEj,
@@ -634,8 +656,10 @@ export default function FormularioAcrPage() {
         actividadesCorreccion: correccionActs
           .filter((a) => a.actividad.trim())
           .map((a) => ({
-            actividad:  a.actividad,
-            recursos:   a.recursos,
+            actividad:   a.actividad,
+            recursos:    a.recursos,
+            evidencia:   a.evidencia   || null,
+            observaciones: a.observaciones || null,
             costoTotal: a.responsables.reduce(
               (s, r) => s + calcCosto(r.cargo, Number(r.horas) || 0), 0
             ),
@@ -650,7 +674,6 @@ export default function FormularioAcrPage() {
           })),
 
         // Section 3
-        analisisCausas:  causasAnalisis || null,
         causasInmediatas: causasInmediatas.filter((c) => c.trim()),
         causasRaiz:       causasRaiz.filter((c) => c.trim()),
 
@@ -660,6 +683,8 @@ export default function FormularioAcrPage() {
           .map((a) => ({
             descripcion:     a.descripcion,
             causasAsociadas: a.causasAsociadas,
+            evidencia:       a.evidencia   || null,
+            observaciones:   a.observaciones || null,
             costoTotal: a.responsables.reduce(
               (s, r) =>
                 s +
@@ -946,6 +971,27 @@ export default function FormularioAcrPage() {
                       </div>
                     </div>
 
+                    {/* Evidencia y Observaciones */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className={labelCls}>Evidencia</label>
+                        <EvidenciaUpload
+                          value={act.evidencia}
+                          onChange={(url) => updateActCorr(aIdx, "evidencia", url)}
+                        />
+                      </div>
+                      <div>
+                        <label className={labelCls}>Observaciones</label>
+                        <input
+                          className={inputCls}
+                          type="text"
+                          placeholder="Observaciones adicionales..."
+                          value={act.observaciones}
+                          onChange={(e) => updateActCorr(aIdx, "observaciones", e.target.value)}
+                        />
+                      </div>
+                    </div>
+
                     {/* Responsables */}
                     <div className="space-y-3">
                       {act.responsables.map((resp, rIdx) => {
@@ -997,6 +1043,7 @@ export default function FormularioAcrPage() {
                                   className={inputCls}
                                   type="number"
                                   min="0"
+                                  step="any"
                                   placeholder="0"
                                   value={resp.horas}
                                   onChange={(e) =>
@@ -1004,9 +1051,7 @@ export default function FormularioAcrPage() {
                                       aIdx,
                                       rIdx,
                                       "horas",
-                                      e.target.value === ""
-                                        ? ""
-                                        : Number(e.target.value)
+                                      parseDecimalInput(e.target.value)
                                     )
                                   }
                                 />
@@ -1379,6 +1424,27 @@ export default function FormularioAcrPage() {
                       </div>
                     </div>
 
+                    {/* Evidencia y Observaciones */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className={labelCls}>Evidencia</label>
+                        <EvidenciaUpload
+                          value={act.evidencia}
+                          onChange={(url) => updateActPlan(aIdx, "evidencia", url)}
+                        />
+                      </div>
+                      <div>
+                        <label className={labelCls}>Observaciones</label>
+                        <input
+                          className={inputCls}
+                          type="text"
+                          placeholder="Observaciones adicionales..."
+                          value={act.observaciones}
+                          onChange={(e) => updateActPlan(aIdx, "observaciones", e.target.value)}
+                        />
+                      </div>
+                    </div>
+
                     {/* Responsables del plan */}
                     {act.responsables.map((resp, rIdx) => {
                       const costoEjec = calcCosto(
@@ -1449,12 +1515,13 @@ export default function FormularioAcrPage() {
                                   className={inputCls}
                                   type="number"
                                   min="0"
+                                  step="any"
                                   placeholder="0"
                                   value={resp.horasEjecucion}
                                   onChange={(e) =>
                                     updateRespPlan(
                                       aIdx, rIdx, "horasEjecucion",
-                                      e.target.value === "" ? "" : Number(e.target.value)
+                                      parseDecimalInput(e.target.value)
                                     )
                                   }
                                 />
@@ -1556,12 +1623,13 @@ export default function FormularioAcrPage() {
                                   className={inputCls}
                                   type="number"
                                   min="0"
+                                  step="any"
                                   placeholder="0"
                                   value={resp.horasSeguimiento}
                                   onChange={(e) =>
                                     updateRespPlan(
                                       aIdx, rIdx, "horasSeguimiento",
-                                      e.target.value === "" ? "" : Number(e.target.value)
+                                      parseDecimalInput(e.target.value)
                                     )
                                   }
                                 />
