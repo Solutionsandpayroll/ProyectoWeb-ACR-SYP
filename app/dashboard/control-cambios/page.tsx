@@ -11,12 +11,18 @@ interface Cambio {
   autor: string | null;
 }
 
+interface SessionData {
+  displayName: string;
+  role: "admin" | "user";
+}
+
 const today = () => new Date().toISOString().slice(0, 10);
 
 export default function ControlCambiosPage() {
   const [cambios, setCambios]   = useState<Cambio[]>([]);
   const [loading, setLoading]   = useState(true);
   const [error, setError]       = useState<string | null>(null);
+  const [session, setSession]   = useState<SessionData | null>(null);
 
   // Form state
   const [showForm, setShowForm] = useState(false);
@@ -29,6 +35,8 @@ export default function ControlCambiosPage() {
 
   // Delete confirm
   const [deletingId, setDeletingId] = useState<number | null>(null);
+
+  const isAdmin = session?.role === "admin";
 
   async function fetchData() {
     setLoading(true);
@@ -45,11 +53,46 @@ export default function ControlCambiosPage() {
     }
   }
 
-  useEffect(() => { fetchData(); }, []);
+  useEffect(() => {
+    void fetchData();
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const fetchSession = async () => {
+      try {
+        const res = await fetch("/api/auth/session", { cache: "no-store" });
+        const json = await res.json();
+        if (!cancelled) {
+          setSession(json.session ?? null);
+        }
+      } catch {
+        if (!cancelled) {
+          setSession(null);
+        }
+      }
+    };
+
+    void fetchSession();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (session?.displayName && !autor) {
+      setAutor(session.displayName);
+    }
+  }, [session, autor]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setFormError(null);
+    if (!isAdmin) {
+      setFormError("Tu perfil solo puede visualizar el historial de cambios.");
+      return;
+    }
     if (!version.trim() || !descripcion.trim() || !fecha) {
       setFormError("Versión, fecha y descripción son obligatorios.");
       return;
@@ -74,6 +117,7 @@ export default function ControlCambiosPage() {
   }
 
   async function handleDelete(id: number) {
+    if (!isAdmin) return;
     try {
       const res = await fetch("/api/control-cambios", {
         method: "DELETE",
@@ -105,20 +149,31 @@ export default function ControlCambiosPage() {
             <p className="text-sm text-slate-500 mt-1">
               Historial de versiones y modificaciones al formato GIN.
             </p>
+            {!isAdmin && session && (
+              <p className="mt-2 inline-flex rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs font-medium text-amber-700">
+                Modo lectura: {session.displayName} solo puede visualizar los cambios.
+              </p>
+            )}
           </div>
-          <button
-            onClick={() => { setShowForm((v) => !v); setFormError(null); }}
-            className="flex items-center gap-2 bg-[#105789] text-white text-sm font-semibold px-4 py-2.5 rounded-lg hover:bg-[#0d4570] transition shadow-sm cursor-pointer"
-          >
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-            </svg>
-            {showForm ? "Cancelar" : "Registrar cambio"}
-          </button>
+          {isAdmin ? (
+            <button
+              onClick={() => { setShowForm((v) => !v); setFormError(null); }}
+              className="flex items-center gap-2 bg-[#105789] text-white text-sm font-semibold px-4 py-2.5 rounded-lg hover:bg-[#0d4570] transition shadow-sm cursor-pointer"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+              </svg>
+              {showForm ? "Cancelar" : "Registrar cambio"}
+            </button>
+          ) : (
+            <span className="inline-flex items-center rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-500 shadow-sm">
+              Solo visualización
+            </span>
+          )}
         </div>
 
         {/* Form */}
-        {showForm && (
+        {showForm && isAdmin && (
           <form
             onSubmit={handleSubmit}
             className="mb-8 bg-white border border-slate-200 rounded-xl shadow-sm p-6 space-y-4"
@@ -210,7 +265,9 @@ export default function ControlCambiosPage() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
             </svg>
             <p className="font-medium">No hay registros de cambios aún.</p>
-            <p className="text-xs mt-1">Haz clic en "Registrar cambio" para agregar el primero.</p>
+            <p className="text-xs mt-1">
+              {isAdmin ? 'Haz clic en "Registrar cambio" para agregar el primero.' : "Cuando exista historial, lo verás aquí en modo lectura."}
+            </p>
           </div>
         ) : (
           <div className="relative">
@@ -259,7 +316,7 @@ export default function ControlCambiosPage() {
                       </div>
 
                       {/* Delete */}
-                      {deletingId === c.id ? (
+                      {isAdmin && deletingId === c.id ? (
                         <div className="flex items-center gap-2 shrink-0">
                           <span className="text-xs text-slate-500">¿Eliminar?</span>
                           <button
@@ -275,7 +332,7 @@ export default function ControlCambiosPage() {
                             No
                           </button>
                         </div>
-                      ) : (
+                      ) : isAdmin ? (
                         <button
                           onClick={() => setDeletingId(c.id)}
                           className="opacity-0 group-hover:opacity-100 transition text-slate-300 hover:text-red-500 shrink-0 cursor-pointer"
@@ -285,7 +342,7 @@ export default function ControlCambiosPage() {
                             <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                           </svg>
                         </button>
-                      )}
+                      ) : null}
                     </div>
                   </div>
                 </div>

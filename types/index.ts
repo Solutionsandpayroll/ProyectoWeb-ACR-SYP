@@ -21,6 +21,7 @@ export interface AcrRecord {
   proceso: string;
   cliente: string | null;
   fecha_apertura: string;
+  fecha_registro: string | null;
   fecha_limite: string | null;
   tipo_accion: string;
   evaluacion_riesgo: string | null;

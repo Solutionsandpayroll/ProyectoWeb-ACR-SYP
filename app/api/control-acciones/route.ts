@@ -11,9 +11,9 @@ export async function GET(req: NextRequest) {
     // ── Return available years ────────────────────────────────────────────
     if (!year) {
       const rows = await sql`
-        SELECT DISTINCT EXTRACT(YEAR FROM fecha_apertura)::int AS year
+        SELECT DISTINCT EXTRACT(YEAR FROM COALESCE(fecha_registro, created_at::date))::int AS year
         FROM acr_registros
-        WHERE fecha_apertura IS NOT NULL
+        WHERE COALESCE(fecha_registro, created_at::date) IS NOT NULL
         ORDER BY year DESC
       `;
       const years = rows.map((r) => r.year as number);
@@ -31,6 +31,7 @@ export async function GET(req: NextRequest) {
         r.consecutivo,
         r.tipo_accion,
         r.fecha_apertura,
+        r.fecha_registro,
         r.fecha_limite,
         r.proceso,
         r.fuente,
@@ -75,7 +76,7 @@ export async function GET(req: NextRequest) {
         ) AS cierre_estimado
       FROM acr_registros r
       LEFT JOIN control_acciones_seguimiento cas ON cas.acr_id = r.id
-      WHERE EXTRACT(YEAR FROM r.fecha_apertura) = ${parseInt(year)}
+      WHERE EXTRACT(YEAR FROM COALESCE(r.fecha_registro, r.created_at::date)) = ${parseInt(year)}
       ORDER BY r.consecutivo ASC, r.created_at ASC
     `;
 

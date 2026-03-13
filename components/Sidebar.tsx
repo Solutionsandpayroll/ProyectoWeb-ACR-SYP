@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import Image from "next/image";
 import { useState, useEffect } from "react";
 
@@ -73,8 +73,10 @@ const navItems = [
 
 export default function Sidebar() {
   const pathname = usePathname();
+  const router = useRouter();
   const [mounted, setMounted] = useState(false);
   const [hoveredHref, setHoveredHref] = useState<string | null>(null);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   useEffect(() => {
     setMounted(true);
@@ -93,6 +95,17 @@ export default function Sidebar() {
   const isActive = (href: string) => {
     if (href === "/dashboard") return pathname === "/dashboard";
     return pathname.startsWith(href);
+  };
+
+  const handleLogout = async () => {
+    setIsLoggingOut(true);
+    try {
+      await fetch("/api/auth/logout", { method: "POST" });
+    } finally {
+      router.replace("/login");
+      router.refresh();
+      setIsLoggingOut(false);
+    }
   };
 
   return (
@@ -318,12 +331,17 @@ export default function Sidebar() {
           className="px-3 py-3 relative"
           style={{ borderTop: "1px solid rgba(255,255,255,0.05)" }}
         >
-          <Link
-            href="/login"
+          <button
+            type="button"
+            onClick={handleLogout}
+            disabled={isLoggingOut}
             className="logout-btn flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-[13px]"
             style={{
               color: "rgba(148,163,184,0.45)",
               textDecoration: "none",
+              width: "100%",
+              textAlign: "left",
+              cursor: isLoggingOut ? "wait" : "pointer",
             }}
             onMouseEnter={(e) => {
               (e.currentTarget as HTMLElement).style.background = "rgba(239,68,68,0.07)";
@@ -344,8 +362,8 @@ export default function Sidebar() {
             >
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
             </svg>
-            <span>Cerrar sesión</span>
-          </Link>
+            <span>{isLoggingOut ? "Cerrando..." : "Cerrar sesión"}</span>
+          </button>
         </div>
       </aside>
     </>

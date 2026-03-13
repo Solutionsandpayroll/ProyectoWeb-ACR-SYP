@@ -23,6 +23,7 @@ export async function GET() {
         r.proceso,
         r.cliente,
         r.fecha_apertura,
+        r.fecha_registro,
         r.fecha_limite,
         r.tipo_accion,
         r.evaluacion_riesgo,
@@ -32,7 +33,7 @@ export async function GET() {
         COALESCE(c.costo_total, 0) AS costo_total
       FROM acr_registros r
       LEFT JOIN costos_asociados c ON c.acr_id = r.id
-      ORDER BY r.created_at DESC
+      ORDER BY COALESCE(r.fecha_registro, r.created_at::date) DESC, r.created_at DESC
     `;
     return NextResponse.json({ data: registros });
   } catch (error) {
@@ -52,6 +53,7 @@ export async function POST(request: NextRequest) {
       proceso,
       cliente,
       fechaApertura,
+      fechaRegistro,
       fechaLimite,
       tipoAccion,
       tratamiento,
@@ -69,9 +71,9 @@ export async function POST(request: NextRequest) {
     } = body;
 
     // Validate required fields
-    if (!consecutivo || !fuente || !proceso || !fechaApertura || !tipoAccion) {
+    if (!consecutivo || !fuente || !proceso || !fechaApertura || !fechaRegistro || !tipoAccion) {
       return NextResponse.json(
-        { error: 'Faltan campos requeridos: consecutivo, fuente, proceso, fechaApertura, tipoAccion' },
+        { error: 'Faltan campos requeridos: consecutivo, fuente, proceso, fechaApertura, fechaRegistro, tipoAccion' },
         { status: 400 }
       );
     }
@@ -80,11 +82,11 @@ export async function POST(request: NextRequest) {
     const [registro] = await sql`
       INSERT INTO acr_registros (
         consecutivo, fuente, proceso, cliente,
-        fecha_apertura, fecha_limite, tipo_accion,
+        fecha_apertura, fecha_registro, fecha_limite, tipo_accion,
         tratamiento, evaluacion_riesgo, descripcion
       ) VALUES (
         ${consecutivo}, ${fuente}, ${proceso}, ${cliente ?? null},
-        ${fechaApertura}, ${fechaLimite ?? null}, ${tipoAccion},
+        ${fechaApertura}, ${fechaRegistro}, ${fechaLimite ?? null}, ${tipoAccion},
         ${tratamiento ?? null}, ${evaluacionRiesgo ?? null}, ${descripcion ?? null}
       )
       RETURNING id

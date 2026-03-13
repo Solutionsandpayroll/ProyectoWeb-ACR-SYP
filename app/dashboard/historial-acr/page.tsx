@@ -74,7 +74,7 @@ export default function HistorialAcrPage() {
 
   // Years derived from records, sorted descending
   const anios = useMemo(() => {
-    const unique = [...new Set(records.map((r) => String(new Date(r.fecha_apertura).getFullYear())))]
+    const unique = [...new Set(records.map((r) => String(new Date(r.fecha_registro ?? r.fecha_apertura).getFullYear())))]
       .sort((a, b) => Number(b) - Number(a));
     return ["Todos", ...unique];
   }, [records]);
@@ -90,11 +90,11 @@ export default function HistorialAcrPage() {
         (r.descripcion ?? "").toLowerCase().includes(q);
       const matchStatus  = filterStatus  === "Todos" || r.estado  === filterStatus;
       const matchProceso = filterProceso === "Todos" || r.proceso === filterProceso;
-      const matchAnio    = filterAnio    === "Todos" || String(new Date(r.fecha_apertura).getFullYear()) === filterAnio;
+      const matchAnio    = filterAnio    === "Todos" || String(new Date(r.fecha_registro ?? r.fecha_apertura).getFullYear()) === filterAnio;
       return matchSearch && matchStatus && matchProceso && matchAnio;
     });
     return [...list].sort((a, b) => {
-      if (sortBy === "fecha")       return new Date(b.fecha_apertura).getTime() - new Date(a.fecha_apertura).getTime();
+      if (sortBy === "fecha")       return new Date(b.fecha_registro ?? b.fecha_apertura).getTime() - new Date(a.fecha_registro ?? a.fecha_apertura).getTime();
       if (sortBy === "costo")       return Number(b.costo_total) - Number(a.costo_total);
       if (sortBy === "consecutivo") return a.consecutivo.localeCompare(b.consecutivo);
       return 0;
@@ -103,7 +103,7 @@ export default function HistorialAcrPage() {
 
   // Summary stats respect the year filter
   const base = filterAnio === "Todos" ? records : records.filter(
-    (r) => String(new Date(r.fecha_apertura).getFullYear()) === filterAnio
+    (r) => String(new Date(r.fecha_registro ?? r.fecha_apertura).getFullYear()) === filterAnio
   );
   const totalCosto   = base.reduce((s, r) => s + Number(r.costo_total), 0);
   const totalAbierta = base.filter((r) => r.estado === "Abierta").length;
@@ -141,7 +141,7 @@ export default function HistorialAcrPage() {
             {anios.map((a) => {
               const count = a === "Todos"
                 ? records.length
-                : records.filter((r) => String(new Date(r.fecha_apertura).getFullYear()) === a).length;
+                : records.filter((r) => String(new Date(r.fecha_registro ?? r.fecha_apertura).getFullYear()) === a).length;
               return (
                 <button
                   key={a}
@@ -264,7 +264,7 @@ export default function HistorialAcrPage() {
                   <th className="text-left px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide hidden lg:table-cell">Cliente</th>
                   <th className="text-left px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Estado</th>
                   <th className="text-right px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide hidden lg:table-cell">Costo total</th>
-                  <th className="text-left px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide hidden xl:table-cell">Fecha apertura</th>
+                  <th className="text-left px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide hidden xl:table-cell">Fecha registro</th>
                   <th className="px-5 py-3"></th>
                 </tr>
               </thead>
@@ -321,7 +321,7 @@ export default function HistorialAcrPage() {
                         : <span className="text-slate-300 text-xs">—</span>}
                     </td>
                     <td className="px-5 py-3.5 text-xs text-slate-500 hidden xl:table-cell whitespace-nowrap">
-                      {fmtDate(r.fecha_apertura)}
+                      {fmtDate(r.fecha_registro ?? r.fecha_apertura)}
                     </td>
                     <td className="px-4 py-3.5 text-right">
                       <Link

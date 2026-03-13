@@ -6,9 +6,9 @@ import { sql } from "@/lib/db";
 
 async function getRecentAcr() {
   const rows = await sql`
-    SELECT consecutivo, proceso, cliente, estado, fecha_apertura
+    SELECT consecutivo, proceso, cliente, estado, fecha_registro, fecha_apertura
     FROM acr_registros
-    ORDER BY created_at DESC
+    ORDER BY COALESCE(fecha_registro, created_at::date) DESC, created_at DESC
     LIMIT 3
   `;
   return rows as {
@@ -16,6 +16,7 @@ async function getRecentAcr() {
     proceso: string;
     cliente: string | null;
     estado: string;
+    fecha_registro: string | null;
     fecha_apertura: string;
   }[];
 }
@@ -24,6 +25,16 @@ export default async function DashboardPage() {
   const recentAcr = await getRecentAcr();
   return (
     <div className="flex flex-col flex-1">
+      <style>{`
+        @keyframes dashboardFadeUp {
+          from { opacity: 0; transform: translateY(18px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        .dash-enter {
+          opacity: 0;
+          animation: dashboardFadeUp 0.55s cubic-bezier(.22,.68,0,1.08) forwards;
+        }
+      `}</style>
       <Header
         title="Panel de Control"
         subtitle="Bienvenido al Sistema de Gestión ACR"
@@ -31,52 +42,58 @@ export default async function DashboardPage() {
 
       <main className="flex-1 p-8 space-y-8">
         {/* Stats grid */}
-        <section>
+        <section className="dash-enter" style={{ animationDelay: "0.05s" }}>
           <h2 className="text-sm font-semibold text-slate-500 uppercase tracking-widest mb-4">
             Resumen General
           </h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5">
-            <StatCard
-              title="Total ACR"
-              value="3"
-              description="Registros activos en el sistema"
-              accentColor="blue"
-              trend={{ value: "2 nuevas", positive: true }}
-              icon={
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                </svg>
-              }
-            />
-            <StatCard
-              title="ACR Abiertas"
-              value="2"
-              description="Pendientes de resolución"
-              accentColor="amber"
-              trend={{ value: "+1", positive: false }}
-              icon={
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-              }
-            />
-            <StatCard
-              title="ACR Cerradas"
-              value="1"
-              description="Resueltas satisfactoriamente"
-              accentColor="green"
-              trend={{ value: "33%", positive: true }}
-              icon={
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-              }
-            />
+            <div className="dash-enter" style={{ animationDelay: "0.12s" }}>
+              <StatCard
+                title="Total ACR"
+                value="3"
+                description="Registros activos en el sistema"
+                accentColor="blue"
+                trend={{ value: "2 nuevas", positive: true }}
+                icon={
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                }
+              />
+            </div>
+            <div className="dash-enter" style={{ animationDelay: "0.18s" }}>
+              <StatCard
+                title="ACR Abiertas"
+                value="2"
+                description="Pendientes de resolución"
+                accentColor="amber"
+                trend={{ value: "+1", positive: false }}
+                icon={
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                }
+              />
+            </div>
+            <div className="dash-enter" style={{ animationDelay: "0.24s" }}>
+              <StatCard
+                title="ACR Cerradas"
+                value="1"
+                description="Resueltas satisfactoriamente"
+                accentColor="green"
+                trend={{ value: "33%", positive: true }}
+                icon={
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                }
+              />
+            </div>
           </div>
         </section>
 
         {/* Recent ACR table */}
-        <section>
+        <section className="dash-enter" style={{ animationDelay: "0.3s" }}>
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-sm font-semibold text-slate-500 uppercase tracking-widest">
               ACR Recientes
@@ -89,7 +106,7 @@ export default async function DashboardPage() {
             </Link>
           </div>
 
-          <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+          <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden dash-enter" style={{ animationDelay: "0.35s" }}>
             <table className="w-full text-sm">
               <thead>
                 <tr className="bg-slate-50 border-b border-slate-200">
@@ -97,7 +114,7 @@ export default async function DashboardPage() {
                   <th className="text-left px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Proceso</th>
                   <th className="text-left px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide hidden md:table-cell">Cliente</th>
                   <th className="text-left px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Estado</th>
-                  <th className="text-right px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide hidden lg:table-cell">Apertura</th>
+                  <th className="text-right px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide hidden lg:table-cell">Registro</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -110,7 +127,7 @@ export default async function DashboardPage() {
                       <StatusBadge status={acr.estado as "Abierta" | "Cerrada" | "Parcial"} />
                     </td>
                     <td className="px-5 py-3.5 text-right text-slate-700 font-medium hidden lg:table-cell">
-                      {new Date(acr.fecha_apertura).toLocaleDateString('es-CO', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+                      {new Date(acr.fecha_registro ?? acr.fecha_apertura).toLocaleDateString('es-CO', { day: '2-digit', month: '2-digit', year: 'numeric' })}
                     </td>
                   </tr>
                 ))}
@@ -125,14 +142,15 @@ export default async function DashboardPage() {
         </section>
 
         {/* Quick actions */}
-        <section>
+        <section className="dash-enter" style={{ animationDelay: "0.4s" }}>
           <h2 className="text-sm font-semibold text-slate-500 uppercase tracking-widest mb-4">
             Acciones Rápidas
           </h2>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <Link
               href="/dashboard/formulario-acr"
-              className="flex items-center gap-4 bg-white border border-slate-200 rounded-xl p-5 hover:border-blue-300 hover:shadow-md transition-all group"
+              className="flex items-center gap-4 bg-white border border-slate-200 rounded-xl p-5 hover:border-blue-300 hover:shadow-md transition-all group dash-enter"
+              style={{ animationDelay: "0.46s" }}
             >
               <div className="w-10 h-10 bg-blue-50 rounded-lg flex items-center justify-center text-blue-600 group-hover:bg-blue-600 group-hover:text-white transition-colors">
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -146,7 +164,8 @@ export default async function DashboardPage() {
             </Link>
             <Link
               href="/dashboard/historial-acr"
-              className="flex items-center gap-4 bg-white border border-slate-200 rounded-xl p-5 hover:border-blue-300 hover:shadow-md transition-all group"
+              className="flex items-center gap-4 bg-white border border-slate-200 rounded-xl p-5 hover:border-blue-300 hover:shadow-md transition-all group dash-enter"
+              style={{ animationDelay: "0.52s" }}
             >
               <div className="w-10 h-10 bg-slate-50 rounded-lg flex items-center justify-center text-slate-500 group-hover:bg-blue-600 group-hover:text-white transition-colors">
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -160,7 +179,8 @@ export default async function DashboardPage() {
             </Link>
             <Link
               href="/dashboard/panel-analisis"
-              className="flex items-center gap-4 bg-white border border-slate-200 rounded-xl p-5 hover:border-blue-300 hover:shadow-md transition-all group"
+              className="flex items-center gap-4 bg-white border border-slate-200 rounded-xl p-5 hover:border-blue-300 hover:shadow-md transition-all group dash-enter"
+              style={{ animationDelay: "0.58s" }}
             >
               <div className="w-10 h-10 bg-slate-50 rounded-lg flex items-center justify-center text-slate-500 group-hover:bg-blue-600 group-hover:text-white transition-colors">
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">

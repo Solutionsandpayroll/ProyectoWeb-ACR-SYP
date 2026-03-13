@@ -1,8 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { sql } from "@/lib/db";
+import { getRequestSession, isAdminSession } from "@/lib/auth";
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
+    const session = getRequestSession(request);
+    if (!session) {
+      return NextResponse.json({ error: "Sesión no válida." }, { status: 401 });
+    }
+
     const rows = await sql`
       SELECT id, version, fecha::text, descripcion, autor, created_at
       FROM control_cambios
@@ -17,6 +23,14 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
+    const session = getRequestSession(request);
+    if (!session) {
+      return NextResponse.json({ error: "Sesión no válida." }, { status: 401 });
+    }
+    if (!isAdminSession(session)) {
+      return NextResponse.json({ error: "No tienes permiso para registrar cambios." }, { status: 403 });
+    }
+
     const { version, fecha, descripcion, autor } = await request.json();
 
     if (!version?.trim() || !descripcion?.trim() || !fecha) {
@@ -29,7 +43,7 @@ export async function POST(request: NextRequest) {
         ${version.trim()},
         ${fecha},
         ${descripcion.trim()},
-        ${autor?.trim() || null}
+        ${autor?.trim() || session.displayName}
       )
       RETURNING id, version, fecha::text, descripcion, autor, created_at
     `;
@@ -42,6 +56,14 @@ export async function POST(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
   try {
+    const session = getRequestSession(request);
+    if (!session) {
+      return NextResponse.json({ error: "Sesión no válida." }, { status: 401 });
+    }
+    if (!isAdminSession(session)) {
+      return NextResponse.json({ error: "No tienes permiso para eliminar cambios." }, { status: 403 });
+    }
+
     const { id } = await request.json();
     if (!id) return NextResponse.json({ error: "ID requerido." }, { status: 400 });
     await sql`DELETE FROM control_cambios WHERE id = ${id}`;

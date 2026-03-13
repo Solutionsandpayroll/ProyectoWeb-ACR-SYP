@@ -1,22 +1,71 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 
 export default function LoginPage() {
   const router = useRouter();
-  const [email, setEmail] = useState("");
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const checkSession = async () => {
+      try {
+        const res = await fetch("/api/auth/session", { cache: "no-store" });
+        const json = await res.json();
+        if (!cancelled && json.session) {
+          router.replace("/dashboard");
+          router.refresh();
+        }
+      } catch {
+        // Ignore session bootstrap failures on login screen.
+      }
+    };
+
+    void checkSession();
+    return () => {
+      cancelled = true;
+    };
+  }, [router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    const startedAt = Date.now();
+    const minVisibleMs = 900;
+    const waitRemaining = async () => {
+      const elapsed = Date.now() - startedAt;
+      const remaining = Math.max(0, minVisibleMs - elapsed);
+      if (remaining > 0) {
+        await new Promise((resolve) => setTimeout(resolve, remaining));
+      }
+    };
+
+    setError(null);
     setIsLoading(true);
-    await new Promise((r) => setTimeout(r, 800));
-    setIsLoading(false);
-    router.push("/dashboard");
+    try {
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, password }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error ?? "No fue posible iniciar sesión.");
+
+      await waitRemaining();
+      router.replace("/dashboard");
+      router.refresh();
+    } catch (err) {
+      await waitRemaining();
+      setError(err instanceof Error ? err.message : "No fue posible iniciar sesión.");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -51,7 +100,40 @@ export default function LoginPage() {
           transform: scale(0.97) translateY(0);
           box-shadow: 0 2px 8px rgba(13,63,110,0.25);
         }
+        @keyframes modalFade {
+          from { opacity: 0; }
+          to { opacity: 1; }
+        }
+        @keyframes logoPulse {
+          0%, 100% { transform: scale(1); }
+          50% { transform: scale(1.06); }
+        }
+        .loading-modal {
+          animation: modalFade 0.2s ease-out both;
+        }
+        .loading-logo {
+          animation: logoPulse 1.2s ease-in-out infinite;
+        }
       `}</style>
+      {isLoading && (
+        <div className="loading-modal fixed inset-0 z-50 bg-slate-950/55 backdrop-blur-[2px] flex items-center justify-center px-6">
+          <div className="w-full max-w-xs rounded-2xl bg-white shadow-2xl border border-slate-200 p-6 flex flex-col items-center text-center">
+            <div className="loading-logo mb-4">
+              <Image
+                src="/Logo_syp_original.png"
+                alt="Solutions & Payroll"
+                width={72}
+                height={72}
+                className="object-contain"
+                priority
+              />
+            </div>
+            <p className="text-sm font-semibold text-slate-800">Iniciando sesión...</p>
+            <p className="mt-1 text-xs text-slate-500">Validando credenciales y preparando tu panel.</p>
+            <span className="mt-4 inline-block w-7 h-7 border-3 border-[#105789] border-t-transparent rounded-full animate-spin" />
+          </div>
+        </div>
+      )}
       {/* ── Left panel — brand ── */}
       <div
         className="hidden lg:flex lg:w-[42%] flex-col justify-between p-12 relative overflow-hidden anim-panel"
@@ -143,28 +225,33 @@ export default function LoginPage() {
         <div className="w-full max-w-sm">
           <div className="mb-8 anim" style={{ animationDelay: "0.05s" }}>
             <h1 className="text-2xl font-semibold text-slate-900 tracking-tight">Bienvenido</h1>
-            <p className="text-slate-400 text-sm mt-1">Ingresa tus credenciales para continuar</p>
+            <p className="text-slate-400 text-sm mt-1">Ingresa tu usuario y contraseña para continuar</p>
+            <div className="mt-4 rounded-xl border border-[#105789]/15 bg-[#105789]/5 px-4 py-3 text-xs text-slate-600">
+              <p className="font-semibold uppercase tracking-widest text-[#105789]">Accesos habilitados</p>
+              <p className="mt-1">Admin</p>
+              <p>Usuario S&amp;P</p>
+            </div>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-5">
-            {/* Email */}
+            {/* Username */}
             <div className="space-y-1.5 anim" style={{ animationDelay: "0.15s" }}>
-              <label htmlFor="email" className="text-xs font-semibold text-slate-500 uppercase tracking-widest">
-                Correo electrónico
+              <label htmlFor="username" className="text-xs font-semibold text-slate-500 uppercase tracking-widest">
+                Usuario
               </label>
               <div className="relative">
                 <span className="absolute inset-y-0 left-3.5 flex items-center text-slate-400 pointer-events-none">
                   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M5.121 17.804A13.937 13.937 0 0112 16c2.5 0 4.847.655 6.879 1.804M15 10a3 3 0 11-6 0 3 3 0 016 0M19 21H5a2 2 0 01-2-2 7 7 0 0114 0 2 2 0 01-2 2z" />
                   </svg>
                 </span>
                 <input
-                  id="email"
-                  type="email"
+                  id="username"
+                  type="text"
                   required
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="usuario@empresa.com"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  placeholder="Admin o Usuario S&P"
                   className="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200 bg-white text-slate-800 placeholder-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-[#0d3f6e]/20 focus:border-[#0d3f6e] transition-all"
                 />
               </div>
@@ -209,15 +296,18 @@ export default function LoginPage() {
               </div>
             </div>
 
-            {/* Remember + forgot */}
-            <div className="flex items-center justify-between anim" style={{ animationDelay: "0.35s" }}>
+            {error && (
+              <p className="anim text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2" style={{ animationDelay: "0.32s" }}>
+                {error}
+              </p>
+            )}
+
+            {/* Remember */}
+            <div className="flex items-center justify-start anim" style={{ animationDelay: "0.35s" }}>
               <label className="flex items-center gap-2 cursor-pointer group">
                 <input type="checkbox" className="w-4 h-4 rounded border-slate-300 accent-[#0d3f6e]" />
                 <span className="text-xs text-slate-500 group-hover:text-slate-700 transition-colors">Recordarme</span>
               </label>
-              <button type="button" className="text-xs text-[#0d3f6e] hover:text-[#0a2d50] font-medium hover:underline transition-colors">
-                ¿Olvidaste tu contraseña?
-              </button>
             </div>
 
             {/* Submit */}

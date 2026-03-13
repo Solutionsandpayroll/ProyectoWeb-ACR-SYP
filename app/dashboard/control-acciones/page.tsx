@@ -10,6 +10,7 @@ interface ControlRow {
   consecutivo: string;
   tipo_accion: string;
   fecha_apertura: string | null;
+  fecha_registro: string | null;
   fecha_limite: string | null;
   proceso: string;
   fuente: string;
@@ -327,7 +328,7 @@ export default function ControlAccionesPage() {
                         </td>
                         {/* Apertura */}
                         <td className="px-4 py-3 font-mono text-xs text-slate-500 whitespace-nowrap">
-                          {fmtDate(row.fecha_apertura)}
+                          {fmtDate(row.fecha_registro)}
                         </td>
                         {/* Proceso */}
                         <td className="px-4 py-3 text-slate-700 max-w-50">

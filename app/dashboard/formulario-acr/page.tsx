@@ -647,6 +647,7 @@ export default function FormularioAcrPage() {
         proceso:          info.proceso,
         cliente:          info.cliente || null,
         fechaApertura:    info.fechaIncidente,
+        fechaRegistro:    info.fechaRegistro,
         tipoAccion:       info.tipoAccion,
         tratamiento:      info.tratamiento || null,
         evaluacionRiesgo: info.evaluacionRiesgo || null,
@@ -768,7 +769,7 @@ export default function FormularioAcrPage() {
                   <div className="space-y-4">
                     <div>
                       <label className={labelCls}>Consecutivo</label>
-                      <input className={readonlyCls} value={info.consecutivo} readOnly />
+                      <input className={inputCls} value={info.consecutivo} onChange={(e) => setInfo({ ...info, consecutivo: e.target.value })} />
                     </div>
                     <div>
                       <label className={labelCls}>Fuente en la que se origina *</label>
@@ -824,7 +825,7 @@ export default function FormularioAcrPage() {
                     </div>
                     <div>
                       <label className={labelCls}>Fecha de registro</label>
-                      <input className={readonlyCls} type="date" value={info.fechaRegistro} readOnly />
+                      <input className={inputCls} type="date" value={info.fechaRegistro} onChange={(e) => setInfoField("fechaRegistro", e.target.value)} />
                     </div>
                   </div>
 

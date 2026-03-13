@@ -98,6 +98,7 @@ export async function PUT(
       proceso,
       cliente,
       fechaApertura,
+      fechaRegistro,
       fechaLimite,
       tipoAccion,
       tratamiento,
@@ -118,6 +119,7 @@ export async function PUT(
         proceso          = ${proceso       ?? null},
         cliente          = ${cliente       ?? null},
         fecha_apertura   = ${fechaApertura ?? null},
+        fecha_registro   = ${fechaRegistro ?? null},
         fecha_limite     = ${fechaLimite   ?? null},
         tipo_accion      = ${tipoAccion    ?? null},
         tratamiento      = ${tratamiento   ?? null},
@@ -144,7 +146,8 @@ export async function PUT(
       `;
       for (let j = 0; j < (act.responsables ?? []).length; j++) {
         const resp = act.responsables[j];
-        if (!resp.nombre?.trim()) continue;
+        // Skip only completely empty rows (no nombre, no cargo, no horas)
+        if (!resp.nombre?.trim() && !resp.cargo?.trim() && !toSafeNumber(resp.horas)) continue;
         await sql`
           INSERT INTO responsables_correccion
             (actividad_id, orden, nombre, cargo, horas, fecha_inicio, fecha_fin, costo)

@@ -120,7 +120,7 @@ interface ActPlan {
 interface ApiData {
   registro: {
     id: number; consecutivo: string; fuente: string; proceso: string;
-    cliente: string | null; fecha_apertura: string; fecha_limite: string | null;
+    cliente: string | null; fecha_apertura: string; fecha_registro: string | null; fecha_limite: string | null;
     tipo_accion: string; tratamiento: string | null; evaluacion_riesgo: string | null;
     descripcion: string | null; estado: string; created_at: string;
   };
@@ -151,7 +151,7 @@ type PlanActEdit = { descripcion: string; causasAsociadas: string[]; responsable
 
 type EditData = {
   fuente: string; proceso: string; cliente: string;
-  fechaApertura: string; fechaLimite: string;
+  fechaApertura: string; fechaRegistro: string; fechaLimite: string;
   tipoAccion: string; tratamiento: string; evaluacionRiesgo: string;
   descripcion: string; estado: string;
   actividadesCorreccion: CorrActEdit[];
@@ -190,6 +190,7 @@ function initEditData(d: ApiData): EditData {
     proceso:         reg.proceso      ?? "",
     cliente:         reg.cliente      ?? "",
     fechaApertura:   toInputDate(reg.fecha_apertura),
+    fechaRegistro:   toInputDate(reg.fecha_registro),
     fechaLimite:     toInputDate(reg.fecha_limite),
     tipoAccion:      reg.tipo_accion  ?? "",
     tratamiento:     reg.tratamiento  ?? "",
@@ -288,7 +289,7 @@ function CargoSelect({ value, onChange }: { value: string; onChange: (v: string)
 
 const ESTADOS_ACR  = ["Abierta", "Cerrada", "Parcial"];
 const TIPOS_ACCION = ["Correctiva", "De mejora"];
-const ESTADOS_PLAN = ["Abierta", "En progreso", "Completado", "Cerrada"];
+const ESTADOS_PLAN = ["Abierta", "Cerrada", "Parcial"];
 
 // â”€â”€â”€ Main Page â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 export default function AcrDetailPage() {
@@ -487,6 +488,7 @@ export default function AcrDetailPage() {
         proceso:          editData.proceso,
         cliente:          editData.cliente || null,
         fechaApertura:    editData.fechaApertura,
+        fechaRegistro:    editData.fechaRegistro || null,
         fechaLimite:      editData.fechaLimite || null,
         tipoAccion:       editData.tipoAccion,
         tratamiento:      editData.tratamiento || null,
@@ -841,8 +843,12 @@ export default function AcrDetailPage() {
                   </select>
                 </div>
                 <div>
-                  <label className={labelCls}>Fecha de apertura</label>
+                  <label className={labelCls}>Fecha del incidente</label>
                   <input type="date" value={ed.fechaApertura} onChange={(e) => setED({ fechaApertura: e.target.value })} className={inputCls} />
+                </div>
+                <div>
+                  <label className={labelCls}>Fecha de registro</label>
+                  <input type="date" value={ed.fechaRegistro} onChange={(e) => setED({ fechaRegistro: e.target.value })} className={inputCls} />
                 </div>
                 <div>
                   <label className={labelCls}>Fecha límite</label>
@@ -873,7 +879,8 @@ export default function AcrDetailPage() {
               <>
                 <Field label="Consecutivo" value={reg.consecutivo} />
                 <Field label="Proceso" value={tr("proceso", reg.proceso)} />
-                <Field label="Fecha de apertura" value={fmtDate(reg.fecha_apertura)} />
+                <Field label="Fecha del incidente" value={fmtDate(reg.fecha_apertura)} />
+                <Field label="Fecha de registro" value={fmtDate(reg.fecha_registro)} />
                 <Field label="Fuente" value={tr("fuente", reg.fuente)} />
                 <Field label="Cliente" value={tr("cliente", reg.cliente)} />
                 <Field label="Tipo de acción" value={tr("tipoAccion", reg.tipo_accion)} />
