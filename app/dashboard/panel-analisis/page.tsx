@@ -15,6 +15,7 @@ import {
   Cell,
   Legend,
 } from "recharts";
+import type { PieLabelRenderProps } from "recharts/types/polar/Pie";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface KV { label: string; value: number }
@@ -124,12 +125,23 @@ function HorizontalBar({ data, color }: { data: KV[]; color: string }) {
 }
 
 const renderDonutLabel = ({
-  cx, cy, midAngle, innerRadius, outerRadius, percent,
-}: {
-  cx: number; cy: number; midAngle: number;
-  innerRadius: number; outerRadius: number;
-  percent: number; name: string;
-}) => {
+  cx,
+  cy,
+  midAngle,
+  innerRadius,
+  outerRadius,
+  percent,
+}: PieLabelRenderProps) => {
+  if (
+    typeof cx !== "number" ||
+    typeof cy !== "number" ||
+    typeof midAngle !== "number" ||
+    typeof innerRadius !== "number" ||
+    typeof outerRadius !== "number" ||
+    typeof percent !== "number"
+  ) {
+    return null;
+  }
   const RADIAN = Math.PI / 180;
   const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
   const x = cx + radius * Math.cos(-midAngle * RADIAN);
