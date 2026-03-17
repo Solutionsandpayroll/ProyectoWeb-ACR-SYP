@@ -1,8 +1,8 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { sql } from '@/lib/db';
 import { getRequestSession, isAdminSession } from '@/lib/auth';
 
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
   const session = getRequestSession(request);
   if (!session) {
     return NextResponse.json({ error: 'Sesión no válida.' }, { status: 401 });
