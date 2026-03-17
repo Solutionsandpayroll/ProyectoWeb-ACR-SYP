@@ -208,6 +208,15 @@ const parseEvidencias = (value: string | null | undefined): string[] => {
   return value.trim() ? [value] : [];
 };
 
+const isAbsoluteUrl = (value: string) => /^https?:\/\//i.test(value);
+
+const resolveEvidenceHref = (evidencia: string): string => {
+  if (isAbsoluteUrl(evidencia)) {
+    return `/api/evidencias/download?url=${encodeURIComponent(evidencia)}`;
+  }
+  return evidencia;
+};
+
 function initEditData(d: ApiData): EditData {
   const reg = d.registro;
   return {
@@ -1180,10 +1189,10 @@ export default function AcrDetailPage() {
                                 <span className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">{fx("Evidencia", "Evidence")}</span>
                                 <div className="mt-0.5 space-y-1">
                                   {parseEvidencias(act.evidencia).map((ev, idx) => (
-                                    ev.startsWith("/uploads/") ? (
+                                    (ev.startsWith("/uploads/") || isAbsoluteUrl(ev)) ? (
                                       <a
                                         key={`${ev}-${idx}`}
-                                        href={ev}
+                                        href={resolveEvidenceHref(ev)}
                                         target="_blank"
                                         rel="noopener noreferrer"
                                         className="flex items-center gap-1.5 text-sm text-[#105789] hover:underline font-medium"
@@ -1487,10 +1496,10 @@ export default function AcrDetailPage() {
                                   <span className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">{fx("Evidencia", "Evidence")}</span>
                                   <div className="mt-0.5 space-y-1">
                                     {parseEvidencias(act.evidencia).map((ev, idx) => (
-                                      ev.startsWith("/uploads/") ? (
+                                      (ev.startsWith("/uploads/") || isAbsoluteUrl(ev)) ? (
                                         <a
                                           key={`${ev}-${idx}`}
-                                          href={ev}
+                                          href={resolveEvidenceHref(ev)}
                                           target="_blank"
                                           rel="noopener noreferrer"
                                           className="flex items-center gap-1.5 text-sm text-[#105789] hover:underline font-medium"

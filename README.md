@@ -20,6 +20,38 @@ You can start editing the page by modifying `app/page.tsx`. The page auto-update
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
+## File Uploads (Vercel Blob)
+
+This project stores uploaded evidence files in Vercel Blob (private mode).
+
+### Required environment variable
+
+Add this variable in your local `.env.local` and in Vercel Project Settings:
+
+```bash
+BLOB_READ_WRITE_TOKEN=your_vercel_blob_read_write_token
+```
+
+### How to get the token
+
+1. In Vercel, go to `Storage` and create/select a Blob store.
+2. Open your Blob store settings and copy a `Read/Write` token.
+3. Add it to environment variables for local and production.
+
+### Current upload flow
+
+1. Frontend sends file to `POST /api/upload`.
+2. API validates type/extension/size (max 10 MB).
+3. File is uploaded to Vercel Blob in the `evidencias/` path.
+4. The returned Blob URL is stored in the `evidencia` field in DB records.
+5. Downloads are served through `GET /api/evidencias/download?url=...` with session validation.
+
+### Security model (private blobs)
+
+1. Uploads are saved with `access: "private"`.
+2. Blob URLs are not accessed directly from the browser.
+3. The app uses a protected backend endpoint to stream evidence files only for authenticated users.
+
 ## Learn More
 
 To learn more about Next.js, take a look at the following resources:

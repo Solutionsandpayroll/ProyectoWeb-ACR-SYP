@@ -45,6 +45,15 @@ const serializeValue = (files: string[]): string => {
   return JSON.stringify(files);
 };
 
+const isAbsoluteUrl = (value: string) => /^https?:\/\//i.test(value);
+
+const resolveEvidenceHref = (fileUrl: string): string => {
+  if (isAbsoluteUrl(fileUrl)) {
+    return `/api/evidencias/download?url=${encodeURIComponent(fileUrl)}`;
+  }
+  return fileUrl;
+};
+
 export default function EvidenciaUpload({ value, onChange, maxFiles = 1 }: Props) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -87,13 +96,13 @@ export default function EvidenciaUpload({ value, onChange, maxFiles = 1 }: Props
         <div className="space-y-1.5">
           {files.map((fileUrl, i) => {
             const displayName = decodeURIComponent(fileUrl.split("/").pop() ?? fileUrl);
-            const isUploadedFile = fileUrl.startsWith("/uploads/");
+            const isUploadedFile = fileUrl.startsWith("/uploads/") || isAbsoluteUrl(fileUrl);
             return (
               <div key={`${fileUrl}-${i}`} className="flex items-center gap-2 px-3 py-2 rounded-lg border border-emerald-300 bg-emerald-50">
                 <FileIcon />
                 {isUploadedFile ? (
                   <a
-                    href={fileUrl}
+                    href={resolveEvidenceHref(fileUrl)}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-sm text-emerald-700 font-medium truncate flex-1 hover:underline"

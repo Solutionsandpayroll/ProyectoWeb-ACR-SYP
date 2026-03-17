@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { writeFile, mkdir } from "fs/promises";
+import { put } from "@vercel/blob";
 import path from "path";
 
 const ALLOWED_MIME = new Set([
@@ -50,18 +50,28 @@ export async function POST(request: NextRequest) {
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
 
-    const uploadsDir = path.join(process.cwd(), "public", "uploads", "evidencias");
-    await mkdir(uploadsDir, { recursive: true });
+    const token = process.env.BLOB_READ_WRITE_TOKEN;
+    if (!token) {
+      return NextResponse.json(
+        { error: "Falta configurar BLOB_READ_WRITE_TOKEN para subir archivos." },
+        { status: 500 }
+      );
+    }
 
     // Sanitize: only alphanumeric, dash, underscore in the base name
     const base = path.basename(file.name, ext)
       .replace(/[^a-zA-Z0-9_\-]/g, "_")
       .slice(0, 60);
-    const filename = `${Date.now()}_${base}${ext}`;
+    const filename = `evidencias/${Date.now()}_${base}${ext}`;
 
-    await writeFile(path.join(uploadsDir, filename), buffer);
+    const blob = await put(filename, buffer, {
+      access: "private",
+      token,
+      addRandomSuffix: true,
+      contentType: file.type,
+    });
 
-    return NextResponse.json({ url: `/uploads/evidencias/${filename}`, name: file.name });
+    return NextResponse.json({ url: blob.url, name: file.name });
   } catch (e) {
     console.error("[upload]", e);
     return NextResponse.json({ error: "Error interno al procesar el archivo." }, { status: 500 });
