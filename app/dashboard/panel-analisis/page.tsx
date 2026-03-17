@@ -437,7 +437,12 @@ export default function PanelAnalisisPage() {
                         return <span className="text-xs text-slate-600">{value} ({e.payload.value})</span>;
                       }}
                     />
-                    <Tooltip formatter={(v: number, name: string) => [`${v}`, name]} />
+                    <Tooltip
+                      formatter={(value, name) => [
+                        `${typeof value === "number" ? value : Number(value ?? 0)}`,
+                        String(name ?? ""),
+                      ]}
+                    />
                   </PieChart>
                 </ResponsiveContainer>
               </ChartCard>
