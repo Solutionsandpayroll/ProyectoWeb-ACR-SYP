@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import Header from "@/components/Header";
 import EvidenciaUpload from "@/components/EvidenciaUpload";
 
@@ -232,11 +232,44 @@ function SectionCard({
 // ─── Main Component ─────────────────────────────────────────────────────────────
 export default function FormularioAcrPage() {
   const today = new Date().toISOString().split("T")[0];
-  const consecutivo = `ACR-${Date.now().toString().slice(-6)}`;
+  const currentYear = new Date().getFullYear().toString();
+
+  // ── Consecutive number - auto-calculated from database ──
+  const [consecutivo, setConsecutivo] = useState("");
+  const [consecutivoLoading, setConsecutivoLoading] = useState(true);
+
+  // Load the next consecutive number on component mount
+  useEffect(() => {
+    const loadConsecutivo = async () => {
+      try {
+        const res = await fetch(`/api/acr/next-consecutive?year=${currentYear}`);
+        if (res.ok) {
+          const data = await res.json();
+          setConsecutivo(data.nextConsecutivo);
+        } else {
+          // Fallback if API fails
+          setConsecutivo("001");
+        }
+      } catch (error) {
+        console.error("Error loading consecutivo:", error);
+        setConsecutivo("001");
+      } finally {
+        setConsecutivoLoading(false);
+      }
+    };
+    loadConsecutivo();
+  }, [currentYear]);
+
+  // Sync loaded consecutivo with info state
+  useEffect(() => {
+    if (consecutivo) {
+      setInfo(prev => ({ ...prev, consecutivo }));
+    }
+  }, [consecutivo]);
 
   // ── Section 1 ──
   const [info, setInfo] = useState({
-    consecutivo,
+    consecutivo: "",
     fuente: "",
     proceso: "",
     cliente: "",
@@ -427,9 +460,22 @@ export default function FormularioAcrPage() {
 
   // ── Reset all form fields to initial state ──
   const resetForm = () => {
-    const newConsecutivo = `ACR-${Date.now().toString().slice(-6)}`;
+    // Reload the next consecutive from API
+    const loadNextConsecutivo = async () => {
+      try {
+        const res = await fetch(`/api/acr/next-consecutive?year=${currentYear}`);
+        if (res.ok) {
+          const data = await res.json();
+          setConsecutivo(data.nextConsecutivo);
+        }
+      } catch (error) {
+        console.error("Error reloading consecutivo:", error);
+      }
+    };
+    loadNextConsecutivo();
+
     setInfo({
-      consecutivo:      newConsecutivo,
+      consecutivo:      "",
       fuente:           '',
       proceso:          '',
       cliente:          '',
@@ -770,7 +816,12 @@ export default function FormularioAcrPage() {
                   <div className="space-y-4">
                     <div>
                       <label className={labelCls}>Consecutivo</label>
-                      <input className={inputCls} value={info.consecutivo} onChange={(e) => setInfo({ ...info, consecutivo: e.target.value })} />
+                      <div className={readonlyCls + " flex items-center justify-between"}>
+                        <span>{consecutivoLoading ? "Cargando..." : info.consecutivo || "—"}</span>
+                        {consecutivoLoading && (
+                          <span className="text-xs text-slate-400">(auto)</span>
+                        )}
+                      </div>
                     </div>
                     <div>
                       <label className={labelCls}>Fuente en la que se origina *</label>
@@ -826,7 +877,7 @@ export default function FormularioAcrPage() {
                     </div>
                     <div>
                       <label className={labelCls}>Fecha de registro</label>
-                      <input className={inputCls} type="date" value={info.fechaRegistro} onChange={(e) => setInfoField("fechaRegistro", e.target.value)} />
+                      <input className={inputCls} type="date" value={info.fechaRegistro} readOnly disabled />
                     </div>
                   </div>
 

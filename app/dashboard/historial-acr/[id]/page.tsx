@@ -970,7 +970,7 @@ export default function AcrDetailPage() {
                 </div>
                 <div>
                   <label className={labelCls}>Fecha de registro</label>
-                  <input type="date" value={ed.fechaRegistro} onChange={(e) => setED({ fechaRegistro: e.target.value })} className={inputCls} />
+                  <input type="date" value={ed.fechaRegistro} className={inputCls} readOnly disabled />
                 </div>
                 <div>
                   <label className={labelCls}>Fecha límite</label>

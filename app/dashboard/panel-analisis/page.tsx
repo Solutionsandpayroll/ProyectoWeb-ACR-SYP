@@ -150,6 +150,9 @@ export default function PanelAnalisisPage() {
   const [compareData, setCompareData] = useState<CompareData | null>(null);
   const [loading, setLoading]         = useState(true);
   const [error, setError]             = useState<string | null>(null);
+  const [refreshTick, setRefreshTick] = useState(0);
+  const [classifying, setClassifying] = useState(false);
+  const [classifyMessage, setClassifyMessage] = useState<string | null>(null);
 
   useEffect(() => {
     setLoading(true);
@@ -176,7 +179,33 @@ export default function PanelAnalisisPage() {
       })
       .catch((e: Error) => setError(e.message))
       .finally(() => setLoading(false));
-  }, [viewMode, selectedYear]);
+  }, [viewMode, selectedYear, refreshTick]);
+
+  const handleClasificarSubcategorias = async (forceReclassifyAll = false) => {
+    if (viewMode !== "single") return;
+    setClassifying(true);
+    setClassifyMessage(null);
+    try {
+      const res = await fetch("/api/panel-analisis", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ year: selectedYear, forceReclassifyAll }),
+      });
+      const payload = await res.json();
+      if (!res.ok) throw new Error(payload.error ?? "No se pudo clasificar subcategorias");
+
+      const stats = payload.stats ?? {};
+      setClassifyMessage(
+        `Clasificacion completada (${selectedYear}): ${stats.reclassified ?? 0} reclasificados, ${stats.unchanged ?? 0} sin cambios, ${stats.reused ?? 0} reutilizados.`
+      );
+      setRefreshTick((v) => v + 1);
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : "Error inesperado al clasificar";
+      setClassifyMessage(msg);
+    } finally {
+      setClassifying(false);
+    }
+  };
 
   const availableYears = data?.availableYears ?? compareData?.availableYears ?? [];
 
@@ -262,6 +291,33 @@ export default function PanelAnalisisPage() {
               </button>
             ))}
           </div>
+
+          {viewMode === "single" && (
+            <div className="mt-3 pt-3 border-t border-slate-100 flex flex-wrap items-center gap-2">
+              <button
+                onClick={() => handleClasificarSubcategorias(false)}
+                disabled={classifying}
+                className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-[#105789] text-white hover:bg-[#0f4e7a] disabled:opacity-50 disabled:cursor-not-allowed transition"
+              >
+                {classifying ? "Clasificando..." : "Dividir procesos en subcategorias (IA)"}
+              </button>
+              <button
+                onClick={() => handleClasificarSubcategorias(true)}
+                disabled={classifying}
+                className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-white text-slate-700 border border-slate-300 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition"
+                title="Fuerza reclasificación completa del año"
+              >
+                Reclasificar todo el año
+              </button>
+              <span className="text-[11px] text-slate-500">
+                Solo se reclasifican ACR nuevos o con cambios en descripcion/causas.
+              </span>
+            </div>
+          )}
+
+          {classifyMessage && (
+            <p className="mt-2 text-xs text-slate-600">{classifyMessage}</p>
+          )}
         </div>
 
         {/* ── Header summary strip (only in non-compare modes) ─────────── */}
