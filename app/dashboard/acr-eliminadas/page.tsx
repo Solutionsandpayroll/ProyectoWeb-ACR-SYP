@@ -18,6 +18,11 @@ interface AcrEliminada {
   razon_eliminacion: string;
 }
 
+interface SessionData {
+  displayName: string;
+  role: "admin" | "user";
+}
+
 const fmtDate = (d: string | null): string => {
   if (!d) return "—";
   const date = new Date(d);
@@ -32,23 +37,65 @@ export default function AcrEliminadasPage() {
   const [records, setRecords] = useState<AcrEliminada[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [session, setSession] = useState<SessionData | null>(null);
   const router = useRouter();
 
   useEffect(() => {
+    let cancelled = false;
+
+    const verifySession = async (): Promise<boolean> => {
+      try {
+        const res = await fetch("/api/auth/session", { cache: "no-store" });
+        const json = await res.json();
+        const currentSession = json.session ?? null;
+        if (!cancelled) {
+          setSession(currentSession);
+        }
+
+        if (!currentSession) {
+          router.replace("/login");
+          return false;
+        }
+
+        if (currentSession.role !== "admin") {
+          router.replace("/dashboard");
+          return false;
+        }
+
+        return true;
+      } catch {
+        router.replace("/login");
+        return false;
+      }
+    };
+
     const fetchDeleted = async () => {
+      const allowed = await verifySession();
+      if (!allowed) return;
+
       try {
         const response = await fetch("/api/acr-eliminadas");
         if (!response.ok) throw new Error("Error al cargar ACRs eliminadas");
         const data = await response.json();
-        setRecords(data.records || []);
+        if (!cancelled) {
+          setRecords(data.records || []);
+        }
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Error desconocido");
+        if (!cancelled) {
+          setError(err instanceof Error ? err.message : "Error desconocido");
+        }
       } finally {
-        setLoading(false);
+        if (!cancelled) {
+          setLoading(false);
+        }
       }
     };
-    fetchDeleted();
-  }, []);
+    void fetchDeleted();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [router]);
 
   return (
     <div className="min-h-screen bg-linear-to-br from-slate-50 to-blue-50">

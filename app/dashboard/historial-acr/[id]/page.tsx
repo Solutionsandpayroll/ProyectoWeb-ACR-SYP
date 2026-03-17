@@ -123,6 +123,10 @@ interface ApiData {
     cliente: string | null; fecha_apertura: string; fecha_registro: string | null; fecha_limite: string | null;
     tipo_accion: string; tratamiento: string | null; evaluacion_riesgo: string | null;
     descripcion: string | null; estado: string; created_at: string;
+    eficacia_accion_adecuada:  string | null;
+    eficacia_no_conformidades: string | null;
+    eficacia_nuevos_riesgos:   string | null;
+    eficacia_cambios_sgi:      string | null;
   };
   actividades_correccion: ActCorr[];
   causas: { inmediatas: string[]; raiz: string[] };
@@ -132,6 +136,10 @@ interface ApiData {
     perdida_ingresos: number; multas_sanciones: number; otros_costos_internos: number;
     descuentos_cliente: number; otros_costos: number; costo_total: number;
   };
+}
+
+interface SessionData {
+  role: "admin" | "user";
 }
 
 // â”€â”€â”€ Edit types â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -161,6 +169,10 @@ type EditData = {
     perdidaIngresos: number; multasSanciones: number; otrosCostosInternos: number;
     descuentosCliente: number; otrosCostos: number;
   };
+  eficaciaAccionAdecuada:  string;
+  eficaciaNoConformidades: string;
+  eficaciaNuevosRiesgos:   string;
+  eficaciaCambiosSgi:      string;
 };
 
 // â”€â”€â”€ Factories â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -182,6 +194,19 @@ const fmtDate = (iso: string | null | undefined) =>
   iso ? new Date(iso).toLocaleDateString("es-CO", { day: "2-digit", month: "short", year: "numeric" }) : "â€”";
 
 const toInputDate = (iso: string | null | undefined) => (iso ? iso.slice(0, 10) : "");
+
+const parseEvidencias = (value: string | null | undefined): string[] => {
+  if (!value) return [];
+  try {
+    const parsed = JSON.parse(value) as unknown;
+    if (Array.isArray(parsed)) {
+      return parsed.filter((v): v is string => typeof v === "string" && v.trim().length > 0);
+    }
+  } catch {
+    // Legacy format (single string)
+  }
+  return value.trim() ? [value] : [];
+};
 
 function initEditData(d: ApiData): EditData {
   const reg = d.registro;
@@ -250,6 +275,10 @@ function initEditData(d: ApiData): EditData {
       descuentosCliente:   Number(d.costos.descuentos_cliente      ?? 0),
       otrosCostos:         Number(d.costos.otros_costos           ?? 0),
     },
+    eficaciaAccionAdecuada:  reg.eficacia_accion_adecuada  ?? "",
+    eficaciaNoConformidades: reg.eficacia_no_conformidades ?? "",
+    eficaciaNuevosRiesgos:   reg.eficacia_nuevos_riesgos   ?? "",
+    eficaciaCambiosSgi:      reg.eficacia_cambios_sgi      ?? "",
   };
 }
 
@@ -291,6 +320,47 @@ const ESTADOS_ACR  = ["Abierta", "Cerrada", "Parcial"];
 const TIPOS_ACCION = ["Correctiva", "De mejora"];
 const ESTADOS_PLAN = ["Abierta", "Cerrada", "Parcial"];
 
+const CARGO_EN_MAP: Record<string, string> = {
+  "Director General": "General Director",
+  "Director de operaciones": "Operations Director",
+  "Gerente de Nomina y ADP": "Payroll and ADP Manager",
+  "Gerente Comercial": "Commercial Manager",
+  "Lider de Administración de personal": "Personnel Administration Lead",
+  "Lider de Gestión Humana": "Human Management Lead",
+  "Lider de Employer of Record Colombia": "Employer of Record Colombia Lead",
+  "Lider Outsourcing de Tesoreria": "Treasury Outsourcing Lead",
+  "Profesional SGI": "IMS Professional",
+  "Profesional de Nomina": "Payroll Professional",
+  "Profesional Back office Sucursales": "Branch Back Office Professional",
+  "Analista Administrativo y financiero": "Administrative and Financial Analyst",
+  "Analista de Nómina": "Payroll Analyst",
+  "Analista Administración de personal": "Personnel Administration Analyst",
+  "Analista de EoR": "EoR Analyst",
+  "Tecnico de Automatización": "Automation Technician",
+  "Asistente Administrativo y Financiero": "Administrative and Financial Assistant",
+  "Asistente Comercial": "Commercial Assistant",
+  "Asistente de Comunicación y Marketing": "Communication and Marketing Assistant",
+  "Asistente de Nómina": "Payroll Assistant",
+  "Asistente Administración de Personal": "Personnel Administration Assistant",
+  "Asistente de EoR": "EoR Assistant",
+  "Asistente de tesorería": "Treasury Assistant",
+  "Auxiliar de nomina": "Payroll Assistant",
+};
+
+const ESTADO_EN_MAP: Record<string, string> = {
+  "Abierta": "Open",
+  "Cerrada": "Closed",
+  "Parcial": "Partial",
+  "En progreso": "In progress",
+  "Completado": "Completed",
+};
+
+const RECURSO_EN_MAP: Record<string, string> = {
+  "Financieros": "Financial",
+  "Tecnológicos": "Technological",
+  "Humanos": "Human Resources",
+};
+
 // â”€â”€â”€ Main Page â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 export default function AcrDetailPage() {
   const params   = useParams();
@@ -313,10 +383,35 @@ export default function AcrDetailPage() {
   const [deletingAcr, setDeletingAcr] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [deleteReason, setDeleteReason] = useState("");
+  const [session, setSession] = useState<SessionData | null>(null);
+
+  const canEditExecutionDates = session?.role === "admin";
 
   // Helper: returns translated text if available, otherwise the original
   const tr = (key: string, val: string | null | undefined): string =>
     translations?.[key] ?? val ?? "";
+
+  // Helper for fixed UI labels (no API call needed)
+  const fx = (es: string, en: string): string => (translations ? en : es);
+  const cargoLabel = (cargo: string | null | undefined): string => {
+    if (!cargo) return "—";
+    if (!translations) return cargo;
+    return CARGO_EN_MAP[cargo] ?? cargo;
+  };
+  const estadoLabel = (estado: string | null | undefined): string => {
+    if (!estado) return "—";
+    if (!translations) return estado;
+    return ESTADO_EN_MAP[estado] ?? estado;
+  };
+  const recursoLabel = (recurso: string | null | undefined): string => {
+    if (!recurso) return "—";
+    if (!translations) return recurso;
+    return RECURSO_EN_MAP[recurso] ?? recurso;
+  };
+  const yesNoLabel = (value: "SI" | "NO"): string => {
+    if (!translations) return value;
+    return value === "SI" ? "YES" : "NO";
+  };
 
   // â”€â”€ Fetch â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const fetchData = useCallback(async () => {
@@ -334,6 +429,29 @@ export default function AcrDetailPage() {
   }, [id]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const fetchSession = async () => {
+      try {
+        const res = await fetch("/api/auth/session", { cache: "no-store" });
+        const json = await res.json();
+        if (!cancelled) {
+          setSession(json.session ?? null);
+        }
+      } catch {
+        if (!cancelled) {
+          setSession(null);
+        }
+      }
+    };
+
+    void fetchSession();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const handleEdit = () => {
     if (!data) return;
@@ -553,6 +671,10 @@ export default function AcrDetailPage() {
           descuentosCliente:    editData.costosExtra.descuentosCliente,
           otrosCostos:          editData.costosExtra.otrosCostos,
         },
+        eficaciaAccionAdecuada:  editData.eficaciaAccionAdecuada  || null,
+        eficaciaNoConformidades: editData.eficaciaNoConformidades || null,
+        eficaciaNuevosRiesgos:   editData.eficaciaNuevosRiesgos   || null,
+        eficaciaCambiosSgi:      editData.eficaciaCambiosSgi      || null,
       };
       const res = await fetch(`/api/acr/${id}`, {
         method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload),
@@ -615,7 +737,7 @@ export default function AcrDetailPage() {
   // ─── Render ───────────────────────────────────────────────────────────────
   if (loading) return (
     <div className="flex flex-col flex-1">
-      <Header title="Detalle ACR" subtitle="Cargando..." />
+      <Header title={fx("Detalle ACR", "ACR Detail")} subtitle={fx("Cargando...", "Loading...")} />
       <div className="flex-1 flex items-center justify-center">
         <div className="w-8 h-8 border-4 border-[#105789] border-t-transparent rounded-full animate-spin" />
       </div>
@@ -624,10 +746,10 @@ export default function AcrDetailPage() {
 
   if (fetchError || !data) return (
     <div className="flex flex-col flex-1">
-      <Header title="Detalle ACR" subtitle="Error" />
+      <Header title={fx("Detalle ACR", "ACR Detail")} subtitle={fx("Error", "Error")} />
       <div className="flex-1 flex items-center justify-center flex-col gap-3">
-        <p className="text-red-600 font-medium">{fetchError ?? "Registro no encontrado"}</p>
-        <button onClick={() => router.back()} className="text-sm text-[#105789] hover:underline cursor-pointer">← Volver al historial</button>
+        <p className="text-red-600 font-medium">{fetchError ?? fx("Registro no encontrado", "Record not found")}</p>
+        <button onClick={() => router.back()} className="text-sm text-[#105789] hover:underline cursor-pointer">← {fx("Volver al historial", "Back to history")}</button>
       </div>
     </div>
   );
@@ -646,7 +768,7 @@ export default function AcrDetailPage() {
       <div className="no-print">
         <Header
           title={`ACR ${reg.consecutivo}`}
-          subtitle={`${reg.proceso} · ${reg.tipo_accion}`}
+          subtitle={`${tr("proceso", reg.proceso)} · ${tr("tipoAccion", reg.tipo_accion)}`}
         />
       </div>
 
@@ -660,13 +782,13 @@ export default function AcrDetailPage() {
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
             </svg>
-            Volver al historial
+            {fx("Volver al historial", "Back to history")}
           </button>
 
           <div className="flex items-center gap-3">
             {saveOk && !isEditing && (
               <span className="text-xs text-emerald-600 font-semibold bg-emerald-50 border border-emerald-200 px-3 py-1.5 rounded-full">
-                ✓ Cambios guardados
+                ✓ {fx("Cambios guardados", "Changes saved")}
               </span>
             )}
             {!isEditing ? (
@@ -691,7 +813,7 @@ export default function AcrDetailPage() {
                   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                   </svg>
-                  Exportar a PDF
+                  {fx("Exportar a PDF", "Export to PDF")}
                 </button>
                 <button
                   onClick={handleEdit}
@@ -700,7 +822,7 @@ export default function AcrDetailPage() {
                   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                   </svg>
-                  Editar ACR
+                  {fx("Editar ACR", "Edit ACR")}
                 </button>
                 <button
                   onClick={() => setShowDeleteModal(true)}
@@ -709,13 +831,13 @@ export default function AcrDetailPage() {
                   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                   </svg>
-                  Eliminar ACR
+                  {fx("Eliminar ACR", "Delete ACR")}
                 </button>
               </>
             ) : (
               <>
                 <button onClick={handleCancel} disabled={saving} className="text-sm font-semibold text-slate-600 border border-slate-300 px-4 py-2 rounded-lg hover:bg-slate-50 transition-colors disabled:opacity-50">
-                  Cancelar
+                  {fx("Cancelar", "Cancel")}
                 </button>
                 <button onClick={handleSave} disabled={saving} className="flex items-center gap-2 bg-[#105789] text-white text-sm font-semibold px-4 py-2 rounded-lg hover:bg-[#0d3f6e] transition-colors shadow-sm disabled:opacity-60">
                   {saving ? <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin inline-block" /> : (
@@ -723,7 +845,7 @@ export default function AcrDetailPage() {
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                     </svg>
                   )}
-                  {saving ? "Guardando..." : "Guardar cambios"}
+                  {saving ? fx("Guardando...", "Saving...") : fx("Guardar cambios", "Save changes")}
                 </button>
               </>
             )}
@@ -763,7 +885,7 @@ export default function AcrDetailPage() {
               />
               <div className="w-px h-10 bg-white/20" />
               <div>
-                <p className="text-white/60 text-xs uppercase tracking-widest font-semibold mb-1">Acciones Correctivas y de Mejora · GIN · V07</p>
+                <p className="text-white/60 text-xs uppercase tracking-widest font-semibold mb-1">{fx("Acciones Correctivas y de Mejora · GIN · V07", "Corrective and Improvement Actions · GIN · V07")}</p>
                 <p className="text-white font-bold text-xl font-mono">{reg.consecutivo}</p>
               </div>
             </div>
@@ -803,17 +925,17 @@ export default function AcrDetailPage() {
                 </>
               ) : (
                 <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-bold border ${estadoColor[reg.estado] ?? "bg-slate-100 text-slate-600"}`}>
-                  {reg.estado}
+                  {estadoLabel(reg.estado)}
                 </span>
               )}
               <span className="text-white/60 text-xs">
-                Creado: {fmtDate(reg.created_at)}
+                {fx("Creado", "Created")}: {fmtDate(reg.created_at)}
               </span>
             </div>
           </div>
 
           {/* ── SECTION 1: Datos Generales ───────────────────────────────── */}
-          <SecTitle n={1} label="Datos Generales" />
+          <SecTitle n={1} label={fx("Datos Generales", "General Information")} />
           <div className="px-6 py-5 grid grid-cols-2 md:grid-cols-4 gap-x-6 gap-y-4 border-b border-slate-200">
             {isEditing && ed ? (
               <>
@@ -877,41 +999,41 @@ export default function AcrDetailPage() {
               </>
             ) : (
               <>
-                <Field label="Consecutivo" value={reg.consecutivo} />
-                <Field label="Proceso" value={tr("proceso", reg.proceso)} />
-                <Field label="Fecha del incidente" value={fmtDate(reg.fecha_apertura)} />
-                <Field label="Fecha de registro" value={fmtDate(reg.fecha_registro)} />
-                <Field label="Fuente" value={tr("fuente", reg.fuente)} />
-                <Field label="Cliente" value={tr("cliente", reg.cliente)} />
-                <Field label="Tipo de acción" value={tr("tipoAccion", reg.tipo_accion)} />
-                <Field label="Evaluación del riesgo" value={tr("evaluacionRiesgo", reg.evaluacion_riesgo)} />
+                <Field label={fx("Consecutivo", "Consecutive ID")} value={reg.consecutivo} />
+                <Field label={fx("Proceso", "Process")} value={tr("proceso", reg.proceso)} />
+                <Field label={fx("Fecha del incidente", "Incident date")} value={fmtDate(reg.fecha_apertura)} />
+                <Field label={fx("Fecha de registro", "Registration date")} value={fmtDate(reg.fecha_registro)} />
+                <Field label={fx("Fuente", "Source")} value={tr("fuente", reg.fuente)} />
+                <Field label={fx("Cliente", "Client")} value={tr("cliente", reg.cliente)} />
+                <Field label={fx("Tipo de acción", "Action type")} value={tr("tipoAccion", reg.tipo_accion)} />
+                <Field label={fx("Evaluación del riesgo", "Risk assessment")} value={tr("evaluacionRiesgo", reg.evaluacion_riesgo)} />
                 {reg.fuente === "Salidas no conformes" && (
-                  <Field label="Tratamiento" value={tr("tratamiento", reg.tratamiento)} />
+                  <Field label={fx("Tratamiento", "Treatment")} value={tr("tratamiento", reg.tratamiento)} />
                 )}
               </>
             )}
           </div>
 
           {/* ── SECTION 2: Descripción ──────────────────────────────────── */}
-          <SecTitle n={2} label="Descripción de la Situación" />
+          <SecTitle n={2} label={fx("Descripción de la Situación", "Situation Description")} />
           <div className="px-6 py-5 border-b border-slate-200">
             {isEditing && ed ? (
               <textarea
                 value={ed.descripcion}
                 rows={4}
                 onChange={(e) => setED({ descripcion: e.target.value })}
-                placeholder="Descripción de la situación..."
+                placeholder={fx("Descripción de la situación...", "Situation description...")}
                 className={inputCls}
               />
             ) : (
               <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-wrap">
-                {tr("descripcion", reg.descripcion) || <span className="text-slate-300">Sin descripción</span>}
+                {tr("descripcion", reg.descripcion) || <span className="text-slate-300">{fx("Sin descripción", "No description")}</span>}
               </p>
             )}
           </div>
 
           {/* ── SECTION 3: Corrección ───────────────────────────────────── */}
-          <SecTitle n={3} label="Corrección" />
+          <SecTitle n={3} label={fx("Corrección", "Correction")} />
           <div className="px-6 py-5 border-b border-slate-200 space-y-4">
             {isEditing && ed ? (
               <>
@@ -943,7 +1065,7 @@ export default function AcrDetailPage() {
                                 onChange={() => toggleRecurso(ai, value)}
                                 className="w-4 h-4 accent-[#105789]"
                               />
-                              <span>{icon} {value}</span>
+                              <span>{icon} {recursoLabel(value)}</span>
                             </label>
                           ))}
                         </div>
@@ -1000,6 +1122,7 @@ export default function AcrDetailPage() {
                           <EvidenciaUpload
                             value={act.evidencia}
                             onChange={(url) => updCorrAct(ai, { evidencia: url })}
+                            maxFiles={3}
                           />
                         </div>
                         <div>
@@ -1017,21 +1140,21 @@ export default function AcrDetailPage() {
               </>
             ) : (
               data.actividades_correccion.length === 0
-                ? <p className="text-sm text-slate-400 italic">Sin actividades de corrección registradas</p>
+                ? <p className="text-sm text-slate-400 italic">{fx("Sin actividades de corrección registradas", "No correction activities registered")}</p>
                 : <div className="space-y-4">
                     {data.actividades_correccion.map((act, ai) => (
                       <div key={act.id} className="border border-slate-200 rounded-lg overflow-hidden">
                         <div className="bg-slate-50 px-4 py-2.5 border-b border-slate-200 flex items-start justify-between">
                           <p className="text-sm font-semibold text-slate-800">{tr(`corrAct_${ai}`, act.actividad)}</p>
                           {Array.isArray(act.recursos) && act.recursos.length > 0 && (
-                            <span className="text-xs text-slate-500 ml-3 shrink-0">{act.recursos.join(", ")}</span>
+                            <span className="text-xs text-slate-500 ml-3 shrink-0">{act.recursos.map((r) => recursoLabel(r)).join(", ")}</span>
                           )}
                         </div>
                         <div className="overflow-x-auto">
                           <table className="w-full text-xs">
                             <thead>
                               <tr className="bg-[#105789]/10 border-b border-slate-200">
-                                {["Nombre","Cargo","Horas","Fecha inicio","Fecha fin","Costo"].map((h) => (
+                                {[fx("Nombre", "Name"), fx("Cargo", "Position"), fx("Horas", "Hours"), fx("Fecha inicio", "Start date"), fx("Fecha fin", "End date"), fx("Costo", "Cost")].map((h) => (
                                   <th key={h} className="text-left px-4 py-2 text-[10px] font-semibold uppercase tracking-wide text-slate-500">{h}</th>
                                 ))}
                               </tr>
@@ -1040,7 +1163,7 @@ export default function AcrDetailPage() {
                               {act.responsables.map((r, ri) => (
                                 <tr key={ri} className="hover:bg-slate-50">
                                   <td className="px-4 py-2 text-slate-800 font-medium">{r.nombre ?? "—"}</td>
-                                  <td className="px-4 py-2 text-slate-600">{r.cargo  ?? "—"}</td>
+                                  <td className="px-4 py-2 text-slate-600">{cargoLabel(r.cargo)}</td>
                                   <td className="px-4 py-2 text-slate-600">{r.horas}</td>
                                   <td className="px-4 py-2 text-slate-500">{fmtDate(r.fecha_inicio)}</td>
                                   <td className="px-4 py-2 text-slate-500">{fmtDate(r.fecha_fin)}</td>
@@ -1052,27 +1175,32 @@ export default function AcrDetailPage() {
                         </div>
                         {(act.evidencia || act.observaciones) && (
                           <div className="px-4 py-3 border-t border-slate-100 grid grid-cols-2 gap-4">
-                            {act.evidencia && (
+                            {parseEvidencias(act.evidencia).length > 0 && (
                               <div>
-                                <span className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">Evidencia</span>
-                                {act.evidencia.startsWith("/uploads/") ? (
-                                  <a
-                                    href={act.evidencia}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="mt-0.5 flex items-center gap-1.5 text-sm text-[#105789] hover:underline font-medium"
-                                  >
-                                    <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15.172 7l-6.586 6.586a2 2 0 002.828 2.828L18 9.828A4 4 0 0012.172 4L5.586 10.586a6 6 0 008.485 8.485L20 13" /></svg>
-                                    {decodeURIComponent(act.evidencia.split("/").pop() ?? act.evidencia)}
-                                  </a>
-                                ) : (
-                                  <p className="text-sm text-slate-700 mt-0.5">{act.evidencia}</p>
-                                )}
+                                <span className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">{fx("Evidencia", "Evidence")}</span>
+                                <div className="mt-0.5 space-y-1">
+                                  {parseEvidencias(act.evidencia).map((ev, idx) => (
+                                    ev.startsWith("/uploads/") ? (
+                                      <a
+                                        key={`${ev}-${idx}`}
+                                        href={ev}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="flex items-center gap-1.5 text-sm text-[#105789] hover:underline font-medium"
+                                      >
+                                        <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15.172 7l-6.586 6.586a2 2 0 002.828 2.828L18 9.828A4 4 0 0012.172 4L5.586 10.586a6 6 0 008.485 8.485L20 13" /></svg>
+                                        {decodeURIComponent(ev.split("/").pop() ?? ev)}
+                                      </a>
+                                    ) : (
+                                      <p key={`${ev}-${idx}`} className="text-sm text-slate-700">{ev}</p>
+                                    )
+                                  ))}
+                                </div>
                               </div>
                             )}
                             {act.observaciones && (
                               <div>
-                                <span className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">Observaciones</span>
+                                <span className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">{fx("Observaciones", "Observations")}</span>
                                 <p className="text-sm text-slate-700 mt-0.5">{tr(`corrActObs_${ai}`, act.observaciones)}</p>
                               </div>
                             )}
@@ -1085,13 +1213,13 @@ export default function AcrDetailPage() {
           </div>
 
           {/* ── SECTION 4: Causas ───────────────────────────────────────── */}
-          <SecTitle n={4} label="Identificación de Causas" />
+          <SecTitle n={4} label={fx("Identificación de Causas", "Cause Identification")} />
           <div className="px-6 py-5 border-b border-slate-200 space-y-4">
             {isEditing && ed ? (
               <>
                 <div className="grid md:grid-cols-2 gap-6">
-                  <div>
-                    <p className="text-xs font-bold uppercase tracking-widest text-[#105789] mb-3">Causas Inmediatas</p>
+                    <div>
+                      <p className="text-xs font-bold uppercase tracking-widest text-[#105789] mb-3">{fx("Causas Inmediatas", "Immediate Causes")}</p>
                     <div className="space-y-2">
                       {ed.causasInmediatas.map((c, i) => (
                         <div key={i} className="flex gap-2 items-start">
@@ -1128,11 +1256,11 @@ export default function AcrDetailPage() {
                           <span>{tr(`causaInm_${i}`, c)}</span>
                         </li>
                       ))}
-                      {data.causas.inmediatas.length === 0 && <p className="text-slate-400 text-sm italic">No registradas</p>}
+                      {data.causas.inmediatas.length === 0 && <p className="text-slate-400 text-sm italic">{fx("No registradas", "Not registered")}</p>}
                     </ol>
                   </div>
                   <div>
-                    <p className="text-xs font-bold uppercase tracking-widest text-red-600 mb-3">Causas Raíz</p>
+                    <p className="text-xs font-bold uppercase tracking-widest text-red-600 mb-3">{fx("Causas Raíz", "Root Causes")}</p>
                     <ol className="space-y-2">
                       {data.causas.raiz.map((c, i) => (
                         <li key={i} className="flex gap-2 text-sm text-slate-700">
@@ -1140,7 +1268,7 @@ export default function AcrDetailPage() {
                           <span>{tr(`causaRaiz_${i}`, c)}</span>
                         </li>
                       ))}
-                      {data.causas.raiz.length === 0 && <p className="text-slate-400 text-sm italic">No registradas</p>}
+                      {data.causas.raiz.length === 0 && <p className="text-slate-400 text-sm italic">{fx("No registradas", "Not registered")}</p>}
                     </ol>
                   </div>
                 </div>
@@ -1149,7 +1277,7 @@ export default function AcrDetailPage() {
           </div>
 
           {/* ── SECTION 5: Plan de Acción ───────────────────────────────── */}
-          <SecTitle n={5} label="Plan de Acción" />
+          <SecTitle n={5} label={fx("Plan de Acción", "Action Plan")} />
           <div className="px-6 py-5 border-b border-slate-200 space-y-4">
             {isEditing && ed ? (
               <>
@@ -1198,11 +1326,25 @@ export default function AcrDetailPage() {
                                 </div>
                                 <div className="flex-1">
                                   <label className="text-[10px] text-slate-400">Inicio</label>
-                                  <input type="date" value={r.fechaInicioEjecucion} onChange={(e) => updPlanResp(ai, ri, { fechaInicioEjecucion: e.target.value })} className="w-full text-xs border border-slate-200 rounded px-2 py-1 focus:outline-none focus:border-[#105789]" />
+                                  <input
+                                    type="date"
+                                    value={r.fechaInicioEjecucion}
+                                    onChange={(e) => updPlanResp(ai, ri, { fechaInicioEjecucion: e.target.value })}
+                                    disabled={!canEditExecutionDates}
+                                    title={!canEditExecutionDates ? "Solo Admin puede editar esta fecha" : undefined}
+                                    className={`w-full text-xs border border-slate-200 rounded px-2 py-1 focus:outline-none focus:border-[#105789] ${!canEditExecutionDates ? "bg-slate-100 text-slate-400 cursor-not-allowed" : ""}`}
+                                  />
                                 </div>
                                 <div className="flex-1">
                                   <label className="text-[10px] text-slate-400">Fin</label>
-                                  <input type="date" value={r.fechaFinEjecucion} onChange={(e) => updPlanResp(ai, ri, { fechaFinEjecucion: e.target.value })} className="w-full text-xs border border-slate-200 rounded px-2 py-1 focus:outline-none focus:border-[#105789]" />
+                                  <input
+                                    type="date"
+                                    value={r.fechaFinEjecucion}
+                                    onChange={(e) => updPlanResp(ai, ri, { fechaFinEjecucion: e.target.value })}
+                                    disabled={!canEditExecutionDates}
+                                    title={!canEditExecutionDates ? "Solo Admin puede editar esta fecha" : undefined}
+                                    className={`w-full text-xs border border-slate-200 rounded px-2 py-1 focus:outline-none focus:border-[#105789] ${!canEditExecutionDates ? "bg-slate-100 text-slate-400 cursor-not-allowed" : ""}`}
+                                  />
                                 </div>
                               </div>
                               <p className="text-xs text-slate-500">Costo estimado: <span className="font-mono font-semibold text-blue-700">{fmtCOP(calcCosto(r.cargoEjecucion, Number(r.horasEjecucion) || 0))}</span></p>
@@ -1241,6 +1383,7 @@ export default function AcrDetailPage() {
                           <EvidenciaUpload
                             value={act.evidencia}
                             onChange={(url) => updPlanAct(ai, { evidencia: url })}
+                            maxFiles={3}
                           />
                         </div>
                         <div>
@@ -1258,7 +1401,7 @@ export default function AcrDetailPage() {
               </>
             ) : (
               data.actividades_plan.length === 0
-                ? <p className="text-sm text-slate-400 italic">Sin actividades en el plan de acción</p>
+                ? <p className="text-sm text-slate-400 italic">{fx("Sin actividades en el plan de acción", "No activities in the action plan")}</p>
                 : <div className="space-y-4">
                     {data.actividades_plan.map((act, ai) => {
                       const ejec = act.responsables_ejecucion  ?? [];
@@ -1269,7 +1412,7 @@ export default function AcrDetailPage() {
                             <p className="text-sm font-semibold text-slate-800">{tr(`planAct_${ai}`, act.descripcion)}</p>
                             {Array.isArray(act.causas_asociadas) && act.causas_asociadas.length > 0 && (
                               <div className="mt-2.5 border-t border-slate-200 pt-2.5">
-                                <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-1.5">Causas asociadas</p>
+                                <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-1.5">{fx("Causas asociadas", "Associated causes")}</p>
                                 <ul className="space-y-1">
                                   {act.causas_asociadas.map((c, i) => {
                                     let text = c;
@@ -1296,16 +1439,16 @@ export default function AcrDetailPage() {
                           </div>
                           <div className="grid md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-slate-100">
                             <div className="p-4">
-                              <p className="text-[10px] font-bold uppercase tracking-widest text-blue-600 mb-2">Ejecución</p>
+                              <p className="text-[10px] font-bold uppercase tracking-widest text-blue-600 mb-2">{fx("Ejecución", "Execution")}</p>
                               <div className="space-y-3">
                                 {ejec.map((r, i) => (
                                   <div key={i} className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs border-b border-slate-100 pb-2 last:border-0 last:pb-0">
-                                    <div><span className="text-slate-400 font-semibold">Nombre: </span><span className="text-slate-800">{r.nombre ?? "—"}</span></div>
-                                    <div><span className="text-slate-400 font-semibold">Cargo: </span><span className="text-slate-700">{r.cargo ?? "—"}</span></div>
-                                    <div><span className="text-slate-400 font-semibold">Horas: </span><span className="text-slate-700">{r.horas}h</span></div>
-                                    <div><span className="text-slate-400 font-semibold">Costo: </span><span className="font-mono text-blue-700">{r.costo > 0 ? `$${Number(r.costo).toLocaleString("es-CO")}` : "—"}</span></div>
+                                    <div><span className="text-slate-400 font-semibold">{fx("Nombre", "Name")}: </span><span className="text-slate-800">{r.nombre ?? "—"}</span></div>
+                                    <div><span className="text-slate-400 font-semibold">{fx("Cargo", "Position")}: </span><span className="text-slate-700">{cargoLabel(r.cargo)}</span></div>
+                                    <div><span className="text-slate-400 font-semibold">{fx("Horas", "Hours")}: </span><span className="text-slate-700">{r.horas}h</span></div>
+                                    <div><span className="text-slate-400 font-semibold">{fx("Costo", "Cost")}: </span><span className="font-mono text-blue-700">{r.costo > 0 ? `$${Number(r.costo).toLocaleString("es-CO")}` : "—"}</span></div>
                                     {r.fecha_inicio && (
-                                      <div className="col-span-2"><span className="text-slate-400 font-semibold">Período: </span><span className="text-slate-600">{fmtDate(r.fecha_inicio)} → {fmtDate(r.fecha_fin)}</span></div>
+                                      <div className="col-span-2"><span className="text-slate-400 font-semibold">{fx("Período", "Period")}: </span><span className="text-slate-600">{fmtDate(r.fecha_inicio)} → {fmtDate(r.fecha_fin)}</span></div>
                                     )}
                                   </div>
                                 ))}
@@ -1313,23 +1456,23 @@ export default function AcrDetailPage() {
                               </div>
                             </div>
                             <div className="p-4">
-                              <p className="text-[10px] font-bold uppercase tracking-widest text-emerald-600 mb-2">Seguimiento</p>
+                              <p className="text-[10px] font-bold uppercase tracking-widest text-emerald-600 mb-2">{fx("Seguimiento", "Follow-up")}</p>
                               <div className="space-y-3">
                                 {segu.map((r, i) => (
                                   <div key={i} className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs border-b border-slate-100 pb-2 last:border-0 last:pb-0">
-                                    <div><span className="text-slate-400 font-semibold">Nombre: </span><span className="text-slate-800">{r.nombre ?? "—"}</span></div>
-                                    <div><span className="text-slate-400 font-semibold">Cargo: </span><span className="text-slate-700">{r.cargo ?? "—"}</span></div>
-                                    <div><span className="text-slate-400 font-semibold">Horas: </span><span className="text-slate-700">{r.horas}h</span></div>
-                                    <div><span className="text-slate-400 font-semibold">Costo: </span><span className="font-mono text-emerald-700">{r.costo > 0 ? `$${Number(r.costo).toLocaleString("es-CO")}` : "—"}</span></div>
-                                    <div className="col-span-2 flex items-center gap-1.5"><span className="text-slate-400 font-semibold">Estado: </span>
+                                    <div><span className="text-slate-400 font-semibold">{fx("Nombre", "Name")}: </span><span className="text-slate-800">{r.nombre ?? "—"}</span></div>
+                                    <div><span className="text-slate-400 font-semibold">{fx("Cargo", "Position")}: </span><span className="text-slate-700">{cargoLabel(r.cargo)}</span></div>
+                                    <div><span className="text-slate-400 font-semibold">{fx("Horas", "Hours")}: </span><span className="text-slate-700">{r.horas}h</span></div>
+                                    <div><span className="text-slate-400 font-semibold">{fx("Costo", "Cost")}: </span><span className="font-mono text-emerald-700">{r.costo > 0 ? `$${Number(r.costo).toLocaleString("es-CO")}` : "—"}</span></div>
+                                    <div className="col-span-2 flex items-center gap-1.5"><span className="text-slate-400 font-semibold">{fx("Estado", "Status")}: </span>
                                       <span className={`inline-block font-semibold rounded px-1.5 py-0.5 ${
                                         r.estado === "Completado" ? "bg-emerald-100 text-emerald-700" :
                                         r.estado === "En progreso" ? "bg-blue-100 text-blue-700" :
                                         "bg-amber-100 text-amber-700"
-                                      }`}>{r.estado}</span>
+                                      }`}>{estadoLabel(r.estado)}</span>
                                     </div>
                                     {r.fecha_inicio && (
-                                      <div className="col-span-2"><span className="text-slate-400 font-semibold">Fecha: </span><span className="text-slate-600">{fmtDate(r.fecha_inicio)}</span></div>
+                                      <div className="col-span-2"><span className="text-slate-400 font-semibold">{fx("Fecha", "Date")}: </span><span className="text-slate-600">{fmtDate(r.fecha_inicio)}</span></div>
                                     )}
                                   </div>
                                 ))}
@@ -1339,27 +1482,32 @@ export default function AcrDetailPage() {
                           </div>
                           {(act.evidencia || act.observaciones) && (
                             <div className="px-4 py-3 border-t border-slate-100 grid grid-cols-2 gap-4">
-                              {act.evidencia && (
+                              {parseEvidencias(act.evidencia).length > 0 && (
                                 <div>
-                                  <span className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">Evidencia</span>
-                                  {act.evidencia.startsWith("/uploads/") ? (
-                                    <a
-                                      href={act.evidencia}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                      className="mt-0.5 flex items-center gap-1.5 text-sm text-[#105789] hover:underline font-medium"
-                                    >
-                                      <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15.172 7l-6.586 6.586a2 2 0 002.828 2.828L18 9.828A4 4 0 0012.172 4L5.586 10.586a6 6 0 008.485 8.485L20 13" /></svg>
-                                      {decodeURIComponent(act.evidencia.split("/").pop() ?? act.evidencia)}
-                                    </a>
-                                  ) : (
-                                    <p className="text-sm text-slate-700 mt-0.5">{act.evidencia}</p>
-                                  )}
+                                  <span className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">{fx("Evidencia", "Evidence")}</span>
+                                  <div className="mt-0.5 space-y-1">
+                                    {parseEvidencias(act.evidencia).map((ev, idx) => (
+                                      ev.startsWith("/uploads/") ? (
+                                        <a
+                                          key={`${ev}-${idx}`}
+                                          href={ev}
+                                          target="_blank"
+                                          rel="noopener noreferrer"
+                                          className="flex items-center gap-1.5 text-sm text-[#105789] hover:underline font-medium"
+                                        >
+                                          <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15.172 7l-6.586 6.586a2 2 0 002.828 2.828L18 9.828A4 4 0 0012.172 4L5.586 10.586a6 6 0 008.485 8.485L20 13" /></svg>
+                                          {decodeURIComponent(ev.split("/").pop() ?? ev)}
+                                        </a>
+                                      ) : (
+                                        <p key={`${ev}-${idx}`} className="text-sm text-slate-700">{ev}</p>
+                                      )
+                                    ))}
+                                  </div>
                                 </div>
                               )}
                               {act.observaciones && (
                                 <div>
-                                  <span className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">Observaciones</span>
+                                  <span className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">{fx("Observaciones", "Observations")}</span>
                                   <p className="text-sm text-slate-700 mt-0.5">{tr(`planActObs_${ai}`, act.observaciones)}</p>
                                 </div>
                               )}
@@ -1372,31 +1520,101 @@ export default function AcrDetailPage() {
             )}
           </div>
 
-          {/* ── SECTION 6: Costos ───────────────────────────────────────── */}
-          <SecTitle n={6} label="Costos Asociados a la ACR" />
+          {/* ── SECTION 6: Revisión de Eficacia ────────────────────────── */}
+          <SecTitle n={6} label={fx("REVISIÓN DE LA EFICACIA DE LAS ACCIONES TOMADAS (Responsable del SGI)", "REVIEW OF THE EFFECTIVENESS OF ACTIONS TAKEN (IMS Responsible)")} />
+          <div className="px-6 py-5 border-b border-slate-200">
+            {(() => {
+              const PREGUNTAS: { key: keyof Pick<EditData, 'eficaciaAccionAdecuada' | 'eficaciaNoConformidades' | 'eficaciaNuevosRiesgos' | 'eficaciaCambiosSgi'>; label: string }[] = [
+                { key: 'eficaciaAccionAdecuada',  label: fx('¿La acción tomada fue adecuada, conveniente y eficaz?', 'Was the action taken adequate, appropriate, and effective?') },
+                { key: 'eficaciaNoConformidades', label: fx('¿Existen no conformidades similares o que potencialmente puedan ocurrir?', 'Are there similar nonconformities or potential nonconformities that could occur?') },
+                { key: 'eficaciaNuevosRiesgos',   label: fx('¿Es necesario incluir nuevos riesgos?', 'Is it necessary to include new risks?') },
+                { key: 'eficaciaCambiosSgi',      label: fx('¿Es necesario realizar cambios en el sistema de gestión integral?', 'Is it necessary to make changes to the integrated management system?') },
+              ];
+              const DB_KEY_MAP: Record<string, string | null> = {
+                eficaciaAccionAdecuada:  reg.eficacia_accion_adecuada,
+                eficaciaNoConformidades: reg.eficacia_no_conformidades,
+                eficaciaNuevosRiesgos:   reg.eficacia_nuevos_riesgos,
+                eficaciaCambiosSgi:      reg.eficacia_cambios_sgi,
+              };
+              return (
+                <div className="space-y-3">
+                  {isEditing && ed ? (
+                    PREGUNTAS.map(({ key, label }) => (
+                      <div key={key} className="flex items-center justify-between gap-4 py-2.5 px-3 rounded-lg border border-slate-100 bg-slate-50/50">
+                        <span className="text-sm text-slate-700 leading-snug flex-1">{label}</span>
+                        <div className="flex items-center gap-4 shrink-0">
+                          <label className="flex items-center gap-1.5 cursor-pointer select-none">
+                            <input
+                              type="radio"
+                              name={key}
+                              value="SI"
+                              checked={ed[key] === 'SI'}
+                              onChange={() => setED({ [key]: 'SI' } as Partial<EditData>)}
+                              className="w-4 h-4 accent-[#105789]"
+                            />
+                            <span className="text-sm font-semibold text-emerald-700">{yesNoLabel("SI")}</span>
+                          </label>
+                          <label className="flex items-center gap-1.5 cursor-pointer select-none">
+                            <input
+                              type="radio"
+                              name={key}
+                              value="NO"
+                              checked={ed[key] === 'NO'}
+                              onChange={() => setED({ [key]: 'NO' } as Partial<EditData>)}
+                              className="w-4 h-4 accent-[#105789]"
+                            />
+                            <span className="text-sm font-semibold text-red-600">{yesNoLabel("NO")}</span>
+                          </label>
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    PREGUNTAS.map(({ key, label }) => {
+                      const val = DB_KEY_MAP[key];
+                      return (
+                        <div key={key} className="flex items-center justify-between gap-4 py-2.5 px-3 rounded-lg border border-slate-100 bg-slate-50/50">
+                          <span className="text-sm text-slate-700 leading-snug flex-1">{label}</span>
+                          {val === 'SI' ? (
+                            <span className="shrink-0 inline-flex items-center px-3 py-0.5 rounded-full text-xs font-bold border bg-emerald-100 text-emerald-700 border-emerald-300">{yesNoLabel("SI")}</span>
+                          ) : val === 'NO' ? (
+                            <span className="shrink-0 inline-flex items-center px-3 py-0.5 rounded-full text-xs font-bold border bg-red-100 text-red-600 border-red-300">{yesNoLabel("NO")}</span>
+                          ) : (
+                            <span className="shrink-0 text-slate-300 text-sm">—</span>
+                          )}
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              );
+            })()}
+          </div>
+
+          {/* ── SECTION 7: Costos ───────────────────────────────────────── */}
+          <SecTitle n={7} label={fx("Costos Asociados a la ACR", "Costs Associated with the ACR")} />
           <div className="px-6 py-5">
             {isEditing && ed ? (
               <div className="space-y-4">
                 <div className="grid grid-cols-3 gap-4">
                   {([
-                    ["Costo corrección",  totalCorreccion      ],
-                    ["Costo plan acción", totalPlanEjecucion   ],
-                    ["Costo seguimiento", totalPlanSeguimiento ],
+                    [fx("Costo corrección", "Correction cost"),  totalCorreccion      ],
+                    [fx("Costo plan acción", "Action plan cost"), totalPlanEjecucion   ],
+                    [fx("Costo seguimiento", "Follow-up cost"), totalPlanSeguimiento ],
                   ] as [string, number][]).map(([label, val]) => (
                     <div key={label} className="border border-blue-100 rounded-lg p-3.5 bg-blue-50/50">
                       <p className="text-[10px] font-semibold uppercase tracking-widest text-blue-400 mb-1">{label}</p>
                       <p className="text-sm font-mono font-bold text-blue-800">{fmtCOP(val)}</p>
-                      <p className="text-[9px] text-blue-400 mt-0.5">Calculado automáticamente</p>
+                      <p className="text-[9px] text-blue-400 mt-0.5">{fx("Calculado automáticamente", "Calculated automatically")}</p>
                     </div>
                   ))}
                 </div>
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                   {([
-                    ["Pérdida de ingresos",    "perdidaIngresos"    ],
-                    ["Multas / sanciones",      "multasSanciones"    ],
-                    ["Otros costos internos",   "otrosCostosInternos"],
-                    ["Descuentos cliente",      "descuentosCliente"  ],
-                    ["Otros costos",            "otrosCostos"        ],
+                    [fx("Pérdida de ingresos", "Revenue loss"),    "perdidaIngresos"    ],
+                    [fx("Multas / sanciones", "Fines / penalties"),      "multasSanciones"    ],
+                    [fx("Otros costos internos", "Other internal costs"),   "otrosCostosInternos"],
+                    [fx("Descuentos cliente", "Client discounts"),      "descuentosCliente"  ],
+                    [fx("Otros costos", "Other costs"),            "otrosCostos"        ],
                   ] as [string, keyof EditData["costosExtra"]][]).map(([label, key]) => (
                     <div key={key}>
                       <label className={labelCls}>{label}</label>
@@ -1410,21 +1628,21 @@ export default function AcrDetailPage() {
                   ))}
                 </div>
                 <div className="bg-[#105789] rounded-lg px-5 py-3 flex items-center justify-between">
-                  <span className="text-white/80 text-xs font-semibold uppercase tracking-widest">Total estimado</span>
+                  <span className="text-white/80 text-xs font-semibold uppercase tracking-widest">{fx("Total estimado", "Estimated total")}</span>
                   <span className="text-white font-bold font-mono text-lg">{fmtCOP(grandTotal)}</span>
                 </div>
               </div>
             ) : (
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 {([
-                  ["Costo corrección",      data.costos.costo_correccion      ],
-                  ["Costo plan acción",     data.costos.costo_plan_accion     ],
-                  ["Costo seguimiento",     data.costos.costo_plan_seguimiento],
-                  ["Pérdida de ingresos",   data.costos.perdida_ingresos      ],
-                  ["Multas / sanciones",    data.costos.multas_sanciones      ],
-                  ["Otros costos internos", data.costos.otros_costos_internos ],
-                  ["Descuentos cliente",    data.costos.descuentos_cliente     ],
-                  ["Otros costos",          data.costos.otros_costos          ],
+                  [fx("Costo corrección", "Correction cost"),      data.costos.costo_correccion      ],
+                  [fx("Costo plan acción", "Action plan cost"),     data.costos.costo_plan_accion     ],
+                  [fx("Costo seguimiento", "Follow-up cost"),     data.costos.costo_plan_seguimiento],
+                  [fx("Pérdida de ingresos", "Revenue loss"),   data.costos.perdida_ingresos      ],
+                  [fx("Multas / sanciones", "Fines / penalties"),    data.costos.multas_sanciones      ],
+                  [fx("Otros costos internos", "Other internal costs"), data.costos.otros_costos_internos ],
+                  [fx("Descuentos cliente", "Client discounts"),    data.costos.descuentos_cliente     ],
+                  [fx("Otros costos", "Other costs"),          data.costos.otros_costos          ],
                 ] as [string, number][]).map(([label, val]) => (
                   <div key={label} className="border border-slate-200 rounded-lg p-3.5 bg-slate-50/50">
                     <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-400 mb-1">{label}</p>
@@ -1437,7 +1655,7 @@ export default function AcrDetailPage() {
                   className="col-span-2 md:col-span-4 rounded-lg px-5 py-3 flex items-center justify-between mt-2"
                   style={{ backgroundColor: "#105789", WebkitPrintColorAdjust: "exact", printColorAdjust: "exact" } as React.CSSProperties}
                 >
-                  <span className="text-white/80 text-xs font-semibold uppercase tracking-widest">Costo Total ACR</span>
+                  <span className="text-white/80 text-xs font-semibold uppercase tracking-widest">{fx("Costo Total ACR", "Total ACR Cost")}</span>
                   <span className="text-white font-bold font-mono text-lg">
                     {fmtCOP(Number(data.costos.costo_total))}
                   </span>

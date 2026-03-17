@@ -5,6 +5,11 @@ import { usePathname, useRouter } from "next/navigation";
 import Image from "next/image";
 import { useState, useEffect } from "react";
 
+interface SessionData {
+  displayName: string;
+  role: "admin" | "user";
+}
+
 const navItems = [
   {
     label: "Dashboard",
@@ -77,6 +82,9 @@ export default function Sidebar() {
   const [mounted, setMounted] = useState(false);
   const [hoveredHref, setHoveredHref] = useState<string | null>(null);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [session, setSession] = useState<SessionData | null>(null);
+
+  const isAdmin = session?.role === "admin";
 
   useEffect(() => {
     setMounted(true);
@@ -90,6 +98,29 @@ export default function Sidebar() {
       });
     }, 650); // max delay (0.22s) + duration (0.3s) + buffer
     return () => clearTimeout(timer);
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const fetchSession = async () => {
+      try {
+        const res = await fetch("/api/auth/session", { cache: "no-store" });
+        const json = await res.json();
+        if (!cancelled) {
+          setSession(json.session ?? null);
+        }
+      } catch {
+        if (!cancelled) {
+          setSession(null);
+        }
+      }
+    };
+
+    void fetchSession();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const isActive = (href: string) => {
@@ -107,6 +138,13 @@ export default function Sidebar() {
       setIsLoggingOut(false);
     }
   };
+
+  const visibleNavItems = navItems.filter((item) => {
+    if (!isAdmin && (item.href === "/dashboard/control-cambios" || item.href === "/dashboard/acr-eliminadas")) {
+      return false;
+    }
+    return true;
+  });
 
   return (
     <>
@@ -231,7 +269,7 @@ export default function Sidebar() {
           </p>
 
           <div className="space-y-0.5">
-            {navItems.map((item) => {
+            {visibleNavItems.map((item) => {
               const active = isActive(item.href);
               const hovered = hoveredHref === item.href;
 

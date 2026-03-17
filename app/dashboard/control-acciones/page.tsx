@@ -28,6 +28,22 @@ interface ControlRow {
   ultima_notificacion: string | null;
 }
 
+// ─── Process → Responsible mapping ──────────────────────────────────────────
+const PROCESO_RESPONSABLES: Record<string, string> = {
+  "Direccionamiento Estratégico": "Eduard Forero · Ricardo Arambulo · William Romero",
+  "Gestión Comercial y de Mercadeo": "Dayana Mejia",
+  "Administración de Nómina": "William Romero",
+  "Administración de Personal": "Jennifer Cervantes",
+  "Selección de Personal": "Patricia Jimenez",
+  "Gestión de Servicio al Cliente": "Ricardo Arambulo · Dayana Mejia",
+  "Gestión Administrativa y Financiera": "Yuly Peña",
+  "Gestión de Talento Humano": "Patricia Jimenez",
+  "Employer of Record": "German Hincapie",
+  "Employer of Record Sucursales": "Tatiana Chavarro",
+  "Gestión Integral": "Ingrid Pineda",
+  "Outsourcing de tesorería": "Alfonso Fonseca",
+};
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 const fmtDate = (d: string | null) => {
   if (!d) return "—";
@@ -334,22 +350,19 @@ export default function ControlAccionesPage() {
                         <td className="px-4 py-3 text-slate-700 max-w-50">
                           <div className="font-medium text-xs leading-snug">{row.proceso || "—"}</div>
                         </td>
-                        {/* Resp. Proceso — editable */}
-                        <td className="px-3 py-2 min-w-44">
-                          <input
-                            type="text"
-                            value={row.resp_ejecucion ?? ""}
-                            onChange={(e) => updateRow(row.id, { resp_ejecucion: e.target.value || null })}
-                            placeholder="Sin asignar"
-                            className="w-full text-xs font-semibold text-slate-700 placeholder:text-slate-300 placeholder:italic bg-transparent border border-transparent rounded px-1.5 py-1 hover:border-slate-200 hover:bg-slate-50 focus:outline-none focus:border-[#105789]/40 focus:bg-blue-50/40 transition-all"
-                          />
-                          <input
-                            type="email"
-                            value={row.resp_ejecucion_email ?? ""}
-                            onChange={(e) => updateRow(row.id, { resp_ejecucion_email: e.target.value || null })}
-                            placeholder="correo@empresa.com"
-                            className="w-full mt-0.5 text-[11px] text-slate-400 placeholder:text-slate-200 bg-transparent border border-transparent rounded px-1.5 py-0.5 hover:border-slate-200 hover:bg-slate-50 focus:outline-none focus:border-[#105789]/40 focus:bg-blue-50/40 transition-all"
-                          />
+                        {/* Resp. Proceso — derived from process mapping */}
+                        <td className="px-4 py-3 min-w-44">
+                          {PROCESO_RESPONSABLES[row.proceso] ? (
+                            <div className="flex flex-col gap-0.5">
+                              {PROCESO_RESPONSABLES[row.proceso].split(" · ").map((name) => (
+                                <span key={name} className="text-xs font-semibold text-slate-700 leading-snug">
+                                  {name}
+                                </span>
+                              ))}
+                            </div>
+                          ) : (
+                            <span className="text-xs text-slate-300 italic">—</span>
+                          )}
                         </td>
                         {/* Resp. Seguimiento — editable */}
                         <td className="px-3 py-2 min-w-44">

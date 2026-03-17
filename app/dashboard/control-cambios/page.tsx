@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import Header from "@/components/Header";
 
 interface Cambio {
@@ -19,6 +20,7 @@ interface SessionData {
 const today = () => new Date().toISOString().slice(0, 10);
 
 export default function ControlCambiosPage() {
+  const router = useRouter();
   const [cambios, setCambios]   = useState<Cambio[]>([]);
   const [loading, setLoading]   = useState(true);
   const [error, setError]       = useState<string | null>(null);
@@ -65,11 +67,16 @@ export default function ControlCambiosPage() {
         const res = await fetch("/api/auth/session", { cache: "no-store" });
         const json = await res.json();
         if (!cancelled) {
-          setSession(json.session ?? null);
+          const nextSession = json.session ?? null;
+          setSession(nextSession);
+          if (nextSession?.role !== "admin") {
+            router.replace("/dashboard");
+          }
         }
       } catch {
         if (!cancelled) {
           setSession(null);
+          router.replace("/login");
         }
       }
     };
@@ -78,7 +85,7 @@ export default function ControlCambiosPage() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [router]);
 
   useEffect(() => {
     if (session?.displayName && !autor) {

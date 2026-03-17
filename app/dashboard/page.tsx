@@ -1,8 +1,47 @@
 import Header from "@/components/Header";
 import StatCard from "@/components/StatCard";
 import StatusBadge from "@/components/StatusBadge";
+import DashboardYearSelect from "@/components/DashboardYearSelect";
 import Link from "next/link";
 import { sql } from "@/lib/db";
+
+const toNumber = (value: unknown): number => {
+  if (typeof value === "number") return Number.isFinite(value) ? value : 0;
+  if (typeof value === "string") {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : 0;
+  }
+  return 0;
+};
+
+async function getDashboardStatsByYear(year: number) {
+  const [row] = await sql`
+    SELECT
+      COUNT(*)::int AS total,
+      COUNT(*) FILTER (WHERE estado = 'Abierta')::int AS abiertas,
+      COUNT(*) FILTER (WHERE estado = 'Cerrada')::int AS cerradas
+    FROM acr_registros
+    WHERE EXTRACT(YEAR FROM COALESCE(fecha_registro, fecha_apertura, created_at::date))::int = ${year}
+  `;
+
+  return {
+    total: toNumber(row?.total),
+    abiertas: toNumber(row?.abiertas),
+    cerradas: toNumber(row?.cerradas),
+  };
+}
+
+async function getAvailableYears() {
+  const rows = await sql`
+    SELECT DISTINCT EXTRACT(YEAR FROM COALESCE(fecha_registro, fecha_apertura, created_at::date))::int AS year
+    FROM acr_registros
+    ORDER BY year DESC
+  `;
+
+  return rows
+    .map((row) => toNumber(row.year))
+    .filter((year) => year > 0);
+}
 
 async function getRecentAcr() {
   const rows = await sql`
@@ -21,7 +60,24 @@ async function getRecentAcr() {
   }[];
 }
 
-export default async function DashboardPage() {
+type DashboardSearchParams = {
+  year?: string;
+};
+
+export default async function DashboardPage({
+  searchParams,
+}: {
+  searchParams?: Promise<DashboardSearchParams>;
+}) {
+  const currentYear = new Date().getFullYear();
+  const params = searchParams ? await searchParams : undefined;
+  const requestedYear = Number(params?.year);
+  const selectedYear = Number.isFinite(requestedYear) && requestedYear > 0 ? requestedYear : currentYear;
+
+  const availableYears = await getAvailableYears();
+  const years = Array.from(new Set([currentYear, ...availableYears])).sort((a, b) => b - a);
+
+  const stats = await getDashboardStatsByYear(selectedYear);
   const recentAcr = await getRecentAcr();
   return (
     <div className="flex flex-col flex-1">
@@ -43,17 +99,19 @@ export default async function DashboardPage() {
       <main className="flex-1 p-8 space-y-8">
         {/* Stats grid */}
         <section className="dash-enter" style={{ animationDelay: "0.05s" }}>
-          <h2 className="text-sm font-semibold text-slate-500 uppercase tracking-widest mb-4">
-            Resumen General
-          </h2>
+          <div className="flex items-center justify-between gap-3 flex-wrap mb-4">
+            <h2 className="text-sm font-semibold text-slate-500 uppercase tracking-widest">
+              Resumen General
+            </h2>
+            <DashboardYearSelect years={years} selectedYear={selectedYear} />
+          </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5">
             <div className="dash-enter" style={{ animationDelay: "0.12s" }}>
               <StatCard
                 title="Total ACR"
-                value="3"
-                description="Registros activos en el sistema"
+                value={stats.total}
+                description={`Registros del año ${selectedYear}`}
                 accentColor="blue"
-                trend={{ value: "2 nuevas", positive: true }}
                 icon={
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -64,10 +122,9 @@ export default async function DashboardPage() {
             <div className="dash-enter" style={{ animationDelay: "0.18s" }}>
               <StatCard
                 title="ACR Abiertas"
-                value="2"
-                description="Pendientes de resolución"
+                value={stats.abiertas}
+                description={`Pendientes en ${selectedYear}`}
                 accentColor="amber"
-                trend={{ value: "+1", positive: false }}
                 icon={
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -78,10 +135,9 @@ export default async function DashboardPage() {
             <div className="dash-enter" style={{ animationDelay: "0.24s" }}>
               <StatCard
                 title="ACR Cerradas"
-                value="1"
-                description="Resueltas satisfactoriamente"
+                value={stats.cerradas}
+                description={`Resueltas en ${selectedYear}`}
                 accentColor="green"
-                trend={{ value: "33%", positive: true }}
                 icon={
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />

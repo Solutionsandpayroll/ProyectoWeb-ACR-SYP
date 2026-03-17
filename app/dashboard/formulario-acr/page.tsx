@@ -75,6 +75,7 @@ const PROCESOS = [
   "Gestión Administrativa y Financiera",
   "Gestión de Talento Humano",
   "Employer of Record",
+  "Employer of Record Sucursales",
   "Gestión Integral",
   "Outsourcing de tesorería",
 ];

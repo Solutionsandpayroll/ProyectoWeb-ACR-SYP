@@ -12,6 +12,31 @@ const toSafeNumber = (value: unknown): number => {
   return 0;
 };
 
+const normalizeEvidencia = (value: unknown): string | null => {
+  if (typeof value !== 'string') return null;
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+
+  try {
+    const parsed = JSON.parse(trimmed) as unknown;
+    if (Array.isArray(parsed)) {
+      const files = parsed
+        .filter((v): v is string => typeof v === 'string')
+        .map((v) => v.trim())
+        .filter(Boolean)
+        .slice(0, 3);
+
+      if (files.length === 0) return null;
+      if (files.length === 1) return files[0];
+      return JSON.stringify(files);
+    }
+  } catch {
+    // Legacy single-value format
+  }
+
+  return trimmed;
+};
+
 // ─── GET: fetch a single ACR with all related data ───────────────────────
 export async function GET(
   _request: NextRequest,
@@ -110,6 +135,10 @@ export async function PUT(
       causasRaiz = [],
       actividadesPlan = [],
       costosAsociados = {},
+      eficaciaAccionAdecuada,
+      eficaciaNoConformidades,
+      eficaciaNuevosRiesgos,
+      eficaciaCambiosSgi,
     } = body;
 
     // ── Update main record ────────────────────────────────────────────────
@@ -125,7 +154,11 @@ export async function PUT(
         tratamiento      = ${tratamiento   ?? null},
         evaluacion_riesgo = ${evaluacionRiesgo ?? null},
         descripcion      = ${descripcion   ?? null},
-        estado           = ${estado        ?? 'Abierta'}
+        estado           = ${estado        ?? 'Abierta'},
+        eficacia_accion_adecuada  = ${eficaciaAccionAdecuada  ?? null},
+        eficacia_no_conformidades = ${eficaciaNoConformidades ?? null},
+        eficacia_nuevos_riesgos   = ${eficaciaNuevosRiesgos   ?? null},
+        eficacia_cambios_sgi      = ${eficaciaCambiosSgi      ?? null}
       WHERE id = ${id}
     `;
 
@@ -141,7 +174,7 @@ export async function PUT(
       if (!act.actividad?.trim()) continue;
       const [actRow] = await sql`
         INSERT INTO actividades_correccion (acr_id, orden, actividad, recursos, costo_total, evidencia, observaciones)
-        VALUES (${id}, ${i + 1}, ${act.actividad}, ${act.recursos ?? []}, ${act.costoTotal ?? 0}, ${act.evidencia ?? null}, ${act.observaciones ?? null})
+        VALUES (${id}, ${i + 1}, ${act.actividad}, ${act.recursos ?? []}, ${act.costoTotal ?? 0}, ${normalizeEvidencia(act.evidencia)}, ${act.observaciones ?? null})
         RETURNING id
       `;
       for (let j = 0; j < (act.responsables ?? []).length; j++) {
@@ -192,7 +225,7 @@ export async function PUT(
       if (!act.descripcion?.trim()) continue;
       const [planRow] = await sql`
         INSERT INTO actividades_plan (acr_id, orden, descripcion, causas_asociadas, costo_total, evidencia, observaciones)
-        VALUES (${id}, ${i + 1}, ${act.descripcion}, ${act.causasAsociadas ?? []}, ${act.costoTotal ?? 0}, ${act.evidencia ?? null}, ${act.observaciones ?? null})
+        VALUES (${id}, ${i + 1}, ${act.descripcion}, ${act.causasAsociadas ?? []}, ${act.costoTotal ?? 0}, ${normalizeEvidencia(act.evidencia)}, ${act.observaciones ?? null})
         RETURNING id
       `;
       for (let k = 0; k < (act.responsables ?? []).length; k++) {

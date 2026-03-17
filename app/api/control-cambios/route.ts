@@ -8,6 +8,9 @@ export async function GET(request: NextRequest) {
     if (!session) {
       return NextResponse.json({ error: "Sesión no válida." }, { status: 401 });
     }
+    if (!isAdminSession(session)) {
+      return NextResponse.json({ error: "No tienes permiso para visualizar cambios." }, { status: 403 });
+    }
 
     const rows = await sql`
       SELECT id, version, fecha::text, descripcion, autor, created_at
