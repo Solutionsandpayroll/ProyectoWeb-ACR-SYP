@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { sql } from '@/lib/db';
 import { transporter, EMAIL_FROM } from '@/lib/email';
 import { buildAcrNotificacionHtml } from '@/lib/email-templates/acr-notificacion';
+import { getResponsableEmailsByProceso, getResponsablesByProceso } from '@/lib/responsables';
 
 /**
  * POST /api/cron/notificaciones-acr
@@ -29,13 +30,18 @@ export async function POST(req: NextRequest) {
   }
 
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000';
+  const configuredInterval = Number(process.env.NOTIFICATION_INTERVAL_MINUTES ?? 21600); // 15 days default
+  const notificationIntervalMinutes =
+    Number.isFinite(configuredInterval) && configuredInterval > 0
+      ? Math.floor(configuredInterval)
+      : 21600;
 
   try {
     // ── Query ACRs that need a notification ────────────────────────────────
     // Conditions:
     //   1. Not closed (estado != 'Cerrada')
     //   2. Has at least one email configured
-    //   3. Has never been notified OR last notification was > 15 days ago
+    //   3. Has never been notified OR last notification exceeded configured interval
     const acrs = await sql`
       SELECT
         r.id,
@@ -55,12 +61,11 @@ export async function POST(req: NextRequest) {
           WHERE ap.acr_id = r.id AND rp.tipo = 'ejecucion'
         ) AS cierre_estimado
       FROM acr_registros r
-      JOIN control_acciones_seguimiento c ON c.acr_id = r.id
+      LEFT JOIN control_acciones_seguimiento c ON c.acr_id = r.id
       WHERE r.estado != 'Cerrada'
-        AND (c.resp_ejecucion_email IS NOT NULL OR c.resp_seguimiento_email IS NOT NULL)
         AND (
           c.ultima_notificacion IS NULL
-          OR c.ultima_notificacion < NOW() - INTERVAL '15 days'
+          OR c.ultima_notificacion < NOW() - make_interval(mins => ${notificationIntervalMinutes})
         )
     `;
 
@@ -83,8 +88,11 @@ export async function POST(req: NextRequest) {
       const acrUrl = `${appUrl}/dashboard/historial-acr/${acr.id}`;
       const subject = `[ACR] Recordatorio — ${acr.tipo_accion} ${acr.consecutivo} sigue ${acr.estado}`;
 
-      // ── Email al responsable del proceso ──────────────────────────────────
-      if (acr.resp_ejecucion_email) {
+      const procesoResponsables = getResponsablesByProceso(acr.proceso ?? '');
+      const procesoEmails = getResponsableEmailsByProceso(acr.proceso ?? '');
+
+      // ── Emails automáticos a responsables del proceso (mapeo por proceso) ──
+      for (const email of procesoEmails) {
         try {
           const html = buildAcrNotificacionHtml({
             consecutivo:        acr.consecutivo,
@@ -93,24 +101,24 @@ export async function POST(req: NextRequest) {
             cliente:            acr.cliente ?? '',
             estado:             acr.estado,
             cierre_estimado:    cierreEstimado,
-            responsable_nombre: acr.resp_ejecucion ?? 'Responsable',
+            responsable_nombre: procesoResponsables.join(' · ') || acr.resp_ejecucion || 'Responsable',
             rol:                'proceso',
             acr_url:            acrUrl,
           });
           await transporter.sendMail({
             from:    EMAIL_FROM,
-            to:      acr.resp_ejecucion_email,
+            to:      email,
             subject,
             html,
           });
-          sentEmails.push(acr.resp_ejecucion_email);
+          sentEmails.push(email);
         } catch (e) {
-          errors.push(`resp_ejecucion (${acr.resp_ejecucion_email}): ${(e as Error).message}`);
+          errors.push(`responsable_proceso (${email}): ${(e as Error).message}`);
         }
       }
 
       // ── Email al responsable de seguimiento ───────────────────────────────
-      if (acr.resp_seguimiento_email && acr.resp_seguimiento_email !== acr.resp_ejecucion_email) {
+      if (acr.resp_seguimiento_email && !sentEmails.includes(acr.resp_seguimiento_email)) {
         try {
           const html = buildAcrNotificacionHtml({
             consecutivo:        acr.consecutivo,
@@ -138,9 +146,12 @@ export async function POST(req: NextRequest) {
       // ── Actualizar última notificación si se envió al menos un email ──────
       if (sentEmails.length > 0) {
         await sql`
-          UPDATE control_acciones_seguimiento
-          SET ultima_notificacion = NOW()
-          WHERE acr_id = ${acr.id}
+          INSERT INTO control_acciones_seguimiento (acr_id, ultima_notificacion, updated_at)
+          VALUES (${acr.id}, NOW(), NOW())
+          ON CONFLICT (acr_id)
+          DO UPDATE SET
+            ultima_notificacion = NOW(),
+            updated_at = NOW()
         `;
       }
 

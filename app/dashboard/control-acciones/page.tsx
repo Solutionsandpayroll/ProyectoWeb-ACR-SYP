@@ -3,6 +3,7 @@
 import { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import Header from "@/components/Header";
 import Link from "next/link";
+import { PROCESO_RESPONSABLES } from "@/lib/responsables";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 interface ControlRow {
@@ -27,22 +28,6 @@ interface ControlRow {
   resp_seguimiento_email: string | null;
   ultima_notificacion: string | null;
 }
-
-// ─── Process → Responsible mapping ──────────────────────────────────────────
-const PROCESO_RESPONSABLES: Record<string, string> = {
-  "Direccionamiento Estratégico": "Eduard Forero · Ricardo Arambulo · William Romero",
-  "Gestión Comercial y de Mercadeo": "Dayana Mejia",
-  "Administración de Nómina": "William Romero",
-  "Administración de Personal": "Jennifer Cervantes",
-  "Selección de Personal": "Patricia Jimenez",
-  "Gestión de Servicio al Cliente": "Ricardo Arambulo · Dayana Mejia",
-  "Gestión Administrativa y Financiera": "Yuly Peña",
-  "Gestión de Talento Humano": "Patricia Jimenez",
-  "Employer of Record": "German Hincapie",
-  "Employer of Record Sucursales": "Tatiana Chavarro",
-  "Gestión Integral": "Ingrid Pineda",
-  "Outsourcing de tesorería": "Alfonso Fonseca",
-};
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 const fmtDate = (d: string | null) => {
@@ -352,9 +337,9 @@ export default function ControlAccionesPage() {
                         </td>
                         {/* Resp. Proceso — derived from process mapping */}
                         <td className="px-4 py-3 min-w-44">
-                          {PROCESO_RESPONSABLES[row.proceso] ? (
+                          {PROCESO_RESPONSABLES[row.proceso]?.length ? (
                             <div className="flex flex-col gap-0.5">
-                              {PROCESO_RESPONSABLES[row.proceso].split(" · ").map((name) => (
+                              {PROCESO_RESPONSABLES[row.proceso].map((name) => (
                                 <span key={name} className="text-xs font-semibold text-slate-700 leading-snug">
                                   {name}
                                 </span>
