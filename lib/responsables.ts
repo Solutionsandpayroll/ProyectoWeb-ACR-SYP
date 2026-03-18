@@ -18,7 +18,7 @@ export const PROCESO_RESPONSABLES: Record<string, string[]> = {
 // a los responsables del proceso, sin necesidad de diligenciar manualmente en Control de Acciones.
 export const RESPONSABLE_EMAILS: Record<string, string> = {
   "Eduard Forero": "",
-  "Ricardo Arambulo": "",
+  "Ricardo Arambulo": "cristianparada531@gmail.com",
   "William Romero": "cristianoronaldo8k@gmail.com",
   "Dayana Mejia": "",
   "Jennifer Cervantes": "",
