@@ -98,7 +98,7 @@ export function buildAcrNotificacionHtml(data: AcrNotificacionData): string {
 
     <div class="message-box">
       <p>
-        Le informamos que la <span class="highlight">${tipo_accion} N.° ${consecutivo}</span>
+        Le informamos que la <span class="highlight">ACR N.° ${consecutivo}</span>
         relacionada con el cliente <span class="highlight">${cliente || '—'}</span>,
         correspondiente al proceso de <span class="highlight">${proceso}</span>,
         continúa con estado <span class="highlight">${estado}</span> y requiere su atención.
@@ -137,7 +137,7 @@ export function buildAcrNotificacionHtml(data: AcrNotificacionData): string {
 
     <!-- Botón -->
     <div class="button-container">
-      <a href="${acr_url}" class="button">📂&nbsp; Ver detalle de la ACR</a>
+      <a href="${acr_url}" class="button" style="color:#ffffff !important;">📂&nbsp; Ver detalle de la ACR</a>
     </div>
 
     <div class="notice-text">

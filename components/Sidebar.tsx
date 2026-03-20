@@ -83,6 +83,7 @@ export default function Sidebar() {
   const [hoveredHref, setHoveredHref] = useState<string | null>(null);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [session, setSession] = useState<SessionData | null>(null);
+  const [mobileOpen, setMobileOpen] = useState(false);
 
   const isAdmin = session?.role === "admin";
 
@@ -99,6 +100,27 @@ export default function Sidebar() {
     }, 650); // max delay (0.22s) + duration (0.3s) + buffer
     return () => clearTimeout(timer);
   }, []);
+
+  useEffect(() => {
+    setMobileOpen(false);
+  }, [pathname]);
+
+  useEffect(() => {
+    if (!mobileOpen) return;
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setMobileOpen(false);
+    };
+
+    window.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", onKeyDown);
+    };
+  }, [mobileOpen]);
 
   useEffect(() => {
     let cancelled = false;
@@ -219,8 +241,30 @@ export default function Sidebar() {
         ::-webkit-scrollbar { width: 0; }
       `}</style>
 
+      <button
+        type="button"
+        onClick={() => setMobileOpen(true)}
+        className="md:hidden fixed top-3 left-3 z-30 inline-flex items-center justify-center w-10 h-10 rounded-lg border border-slate-200 bg-white text-slate-700 shadow-sm"
+        aria-label="Abrir menú"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+        </svg>
+      </button>
+
+      {mobileOpen && (
+        <button
+          type="button"
+          onClick={() => setMobileOpen(false)}
+          className="md:hidden fixed inset-0 z-40 bg-slate-900/45"
+          aria-label="Cerrar menú"
+        />
+      )}
+
       <aside
-        className="sidebar-root fixed inset-y-0 left-0 w-72 flex flex-col z-10"
+        className={`sidebar-root fixed inset-y-0 left-0 w-72 flex flex-col z-50 md:z-10 transition-transform duration-300 ${
+          mobileOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
+        }`}
         style={{
           background: "linear-gradient(175deg, #0f172a 0%, #0b1120 60%, #0c1628 100%)",
           borderRight: "1px solid rgba(255,255,255,0.045)",
@@ -243,6 +287,16 @@ export default function Sidebar() {
         <div
           className="brand-divider flex items-center justify-center px-4 py-3 relative"
         >
+          <button
+            type="button"
+            onClick={() => setMobileOpen(false)}
+            className="md:hidden absolute left-2 top-2 inline-flex items-center justify-center w-8 h-8 rounded-md text-slate-300 hover:bg-white/10"
+            aria-label="Cerrar menú"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
           <Image
             src="/Titulo_empresa_v2.png"
             alt="Solutions & Payroll"
@@ -294,6 +348,7 @@ export default function Sidebar() {
                   }}
                   onMouseEnter={() => setHoveredHref(item.href)}
                   onMouseLeave={() => setHoveredHref(null)}
+                  onClick={() => setMobileOpen(false)}
                 >
                   {/* Active left bar */}
                   <span

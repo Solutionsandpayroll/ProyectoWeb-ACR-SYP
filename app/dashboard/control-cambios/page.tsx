@@ -148,9 +148,9 @@ export default function ControlCambiosPage() {
     <div className="flex flex-col flex-1 min-h-screen bg-slate-50">
       <Header title="Control de Cambios" />
 
-      <main className="flex-1 px-6 py-8 max-w-4xl mx-auto w-full">
+      <main className="flex-1 px-4 sm:px-6 py-6 sm:py-8 max-w-4xl mx-auto w-full">
         {/* Page header */}
-        <div className="flex items-center justify-between mb-8">
+        <div className="flex items-center justify-between gap-3 flex-wrap mb-8">
           <div>
             <h1 className="text-2xl font-bold text-slate-800">Control de Cambios del Formato ACR</h1>
             <p className="text-sm text-slate-500 mt-1">
@@ -279,13 +279,13 @@ export default function ControlCambiosPage() {
         ) : (
           <div className="relative">
             {/* Timeline line */}
-            <div className="absolute left-22 top-0 bottom-0 w-px bg-slate-200" />
+            <div className="hidden md:block absolute left-22 top-0 bottom-0 w-px bg-slate-200" />
 
             <div className="space-y-0">
               {cambios.map((c, idx) => (
-                <div key={c.id} className="relative flex gap-6 pb-8 last:pb-0">
+                <div key={c.id} className="relative flex flex-col md:flex-row gap-3 md:gap-6 pb-8 last:pb-0">
                   {/* Version badge */}
-                  <div className="shrink-0 w-22 pt-0.5 flex flex-col items-end gap-1 pr-5">
+                  <div className="shrink-0 md:w-22 pt-0.5 flex flex-col items-start md:items-end gap-1 md:pr-5">
                     <span className="inline-block text-xs font-bold text-[#105789] bg-[#105789]/10 border border-[#105789]/20 rounded-md px-2 py-0.5 font-mono tracking-wide">
                       {c.version}
                     </span>
@@ -293,7 +293,7 @@ export default function ControlCambiosPage() {
 
                   {/* Timeline dot */}
                   <div
-                    className={`absolute left-21 top-1.5 w-3 h-3 rounded-full border-2 z-10 ${
+                    className={`hidden md:block absolute left-21 top-1.5 w-3 h-3 rounded-full border-2 z-10 ${
                       idx === 0
                         ? "bg-[#105789] border-[#105789]"
                         : "bg-white border-slate-300"

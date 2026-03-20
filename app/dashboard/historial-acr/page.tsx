@@ -113,10 +113,10 @@ export default function HistorialAcrPage() {
     <div className="flex flex-col flex-1">
       <Header title="Historial ACR" subtitle="Todos los registros de Acciones Correctivas y de Mejora" />
 
-      <main className="flex-1 p-6 space-y-6">
+      <main className="flex-1 p-4 sm:p-6 space-y-6">
 
         {/* ── Summary cards ──────────────────────────────────────────────── */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {[
             { label: filterAnio === "Todos" ? "Total registros" : `Total ${filterAnio}`, value: loading ? "—" : base.length,                     color: "text-slate-800" },
             { label: "Abiertas",         value: loading ? "—" : totalAbierta,                      color: "text-amber-600" },
@@ -244,7 +244,7 @@ export default function HistorialAcrPage() {
         )}
 
         {/* ── Table ──────────────────────────────────────────────────────── */}
-        <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+        <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-x-auto">
           <div className="px-5 py-3.5 border-b border-slate-100 flex items-center justify-between">
             <p className="text-sm text-slate-500">
               {loading
@@ -255,7 +255,7 @@ export default function HistorialAcrPage() {
           </div>
 
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+            <table className="w-full text-sm min-w-225">
               <thead>
                 <tr className="bg-slate-50 border-b border-slate-200">
                   <th className="text-left px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Consecutivo</th>

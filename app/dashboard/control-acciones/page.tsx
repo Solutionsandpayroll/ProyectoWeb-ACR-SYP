@@ -3,9 +3,13 @@
 import { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import Header from "@/components/Header";
 import Link from "next/link";
-import { PROCESO_RESPONSABLES } from "@/lib/responsables";
+import { PROCESO_RESPONSABLES, RESPONSABLES_SEGUIMIENTO } from "@/lib/responsables";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
+interface SessionData {
+  role: "admin" | "user";
+}
+
 interface ControlRow {
   id: number;
   consecutivo: string;
@@ -37,6 +41,13 @@ const fmtDate = (d: string | null) => {
   return dt.toLocaleDateString("es-CO", { day: "2-digit", month: "2-digit", year: "numeric" });
 };
 
+const toDateInputValue = (d: string | null) => {
+  if (!d) return "";
+  const dt = new Date(d);
+  if (isNaN(dt.getTime())) return "";
+  return dt.toISOString().split('T')[0]; // Convert to YYYY-MM-DD
+};
+
 const estadoColor = (estado: string) => {
   if (!estado) return "bg-slate-100 text-slate-400";
   const e = estado.toLowerCase();
@@ -55,9 +66,27 @@ const estadoDot = (estado: string) => {
   return "bg-slate-400";
 };
 
+const parseSeguimientoResponsables = (value: string | null | undefined): string[] => {
+  if (!value) return [""];
+  const parts = value
+    .split(/[|,\n]/)
+    .map((v) => v.trim())
+    .filter(Boolean);
+
+  const unique = Array.from(new Set(parts)).slice(0, 3);
+  return unique.length > 0 ? unique : [""];
+};
+
+const serializeSeguimientoResponsables = (items: string[]): string | null => {
+  const cleaned = items.map((v) => v.trim()).filter(Boolean);
+  return cleaned.length > 0 ? cleaned.join(" | ") : null;
+};
+
 // ─── Main Page ────────────────────────────────────────────────────────────────
 export default function ControlAccionesPage() {
+  const PAGE_SIZE = 10;
   const currentYear = new Date().getFullYear();
+  const [session, setSession] = useState<SessionData | null>(null);
 
   const [years, setYears]               = useState<number[]>([currentYear]);
   const [selectedYear, setSelectedYear] = useState<number>(currentYear);
@@ -69,11 +98,33 @@ export default function ControlAccionesPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError]     = useState<string | null>(null);
   const [saving, setSaving]   = useState<Record<number, "saving" | "saved" | "error">>({});
+  const [currentPage, setCurrentPage] = useState(1);
+  const [seguimientoDrafts, setSeguimientoDrafts] = useState<Record<number, string[]>>({});
 
   // Ref so debounce callbacks can read latest rows without stale closures
   const rowsRef = useRef<ControlRow[]>([]);
   rowsRef.current = rows;
   const saveTimers = useRef<Record<number, ReturnType<typeof setTimeout>>>({});
+
+  // Fetch session on mount
+  useEffect(() => {
+    let cancelled = false;
+    const fetchSession = async () => {
+      try {
+        const res = await fetch("/api/auth/session", { cache: "no-store" });
+        const json = await res.json();
+        if (!cancelled) {
+          setSession(json.session ?? null);
+        }
+      } catch {
+        if (!cancelled) {
+          setSession(null);
+        }
+      }
+    };
+    void fetchSession();
+    return () => { cancelled = true; };
+  }, []);
 
   // ── Fetch available years on mount ──────────────────────────────────────
   useEffect(() => {
@@ -97,6 +148,7 @@ export default function ControlAccionesPage() {
       .then((data) => {
         if (data.error) throw new Error(data.error);
         setRows(data.data ?? []);
+        setSeguimientoDrafts({});
       })
       .catch((e) => setError(e.message ?? "Error al cargar"))
       .finally(() => setLoading(false));
@@ -120,6 +172,7 @@ export default function ControlAccionesPage() {
           observaciones:               row.observaciones,
           resp_ejecucion_email:        row.resp_ejecucion_email,
           resp_seguimiento_email:      row.resp_seguimiento_email,
+          cierre_estimado:             row.cierre_estimado,
         }),
       });
       setSaving((prev) => ({ ...prev, [rowId]: res.ok ? "saved" : "error" }));
@@ -136,10 +189,38 @@ export default function ControlAccionesPage() {
     saveTimers.current[rowId] = setTimeout(() => saveRow(rowId), 800);
   }, [saveRow]);
 
+  const getSeguimientoSlots = useCallback((row: ControlRow): string[] => {
+    const draft = seguimientoDrafts[row.id];
+    if (draft && draft.length > 0) return draft;
+    return parseSeguimientoResponsables(row.resp_seguimiento);
+  }, [seguimientoDrafts]);
+
   const filteredRows = useMemo(() => {
     if (filter === "all") return rows;
     return rows.filter((r) => r.estado === filter);
   }, [rows, filter]);
+
+  const totalPages = useMemo(
+    () => Math.max(1, Math.ceil(filteredRows.length / PAGE_SIZE)),
+    [filteredRows.length, PAGE_SIZE]
+  );
+
+  const pageStartIndex = (currentPage - 1) * PAGE_SIZE;
+
+  const paginatedRows = useMemo(() => {
+    const start = (currentPage - 1) * PAGE_SIZE;
+    return filteredRows.slice(start, start + PAGE_SIZE);
+  }, [filteredRows, currentPage, PAGE_SIZE]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [selectedYear, filter]);
+
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [currentPage, totalPages]);
 
   const stats = useMemo(() => ({
     total:    rows.length,
@@ -167,7 +248,7 @@ export default function ControlAccionesPage() {
         subtitle="Seguimiento anual de Acciones Correctivas y de Mejora · GIN V07"
       />
 
-      <main className="flex-1 p-6 w-full max-w-350 mx-auto min-w-0">
+      <main className="flex-1 p-4 sm:p-6 w-full max-w-350 mx-auto min-w-0">
 
         {/* ── Year selector bar ─────────────────────────────────────────── */}
         <div className="flex items-center gap-3 mb-6 flex-wrap">
@@ -235,7 +316,7 @@ export default function ControlAccionesPage() {
         </div>
 
         {/* ── Stats ─────────────────────────────────────────────────────── */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
           {[
             { label: "Total registros",  value: stats.total,    color: "text-slate-800" },
             { label: "Abiertas",         value: stats.abiertas, color: "text-orange-500" },
@@ -287,7 +368,7 @@ export default function ControlAccionesPage() {
                 {error}
               </div>
             ) : (
-            <table className="w-full text-sm border-collapse">
+            <table className="w-full text-sm border-collapse" style={{ minWidth: 1280 }}>
                 <thead>
                   <tr style={{ backgroundColor: "#105789", WebkitPrintColorAdjust: "exact", printColorAdjust: "exact" } as React.CSSProperties}>
                     {["No.", "Tipo", "Apertura", "Proceso", "Resp. Proceso", "Resp. Seguimiento", "Fuente", "Estado", "Eficaz", "Cierre estimado", "Fecha verif. eficacia", "Cliente", "Observaciones"].map((h) => (
@@ -304,18 +385,18 @@ export default function ControlAccionesPage() {
                 <tbody>
                   {filteredRows.length === 0 ? (
                     <tr>
-                      <td colSpan={14} className="text-center py-14 text-slate-300 italic text-sm">
+                      <td colSpan={13} className="text-center py-14 text-slate-300 italic text-sm">
                         {rows.length === 0
                           ? `No hay registros ACR para el año ${selectedYear}. Los registros creados en ${selectedYear} aparecerán aquí automáticamente.`
                           : "No hay registros que coincidan con el filtro seleccionado."}
                       </td>
                     </tr>
                   ) : (
-                    filteredRows.map((row, i) => (
+                    paginatedRows.map((row, i) => (
                       <tr key={row.id} className={`border-b border-slate-100 hover:bg-slate-50 transition-colors ${i % 2 === 0 ? "" : "bg-slate-50/40"}`}>
                         {/* No. */}
                         <td className="px-4 py-3 font-mono text-xs text-slate-400 font-semibold whitespace-nowrap">
-                          {String(i + 1).padStart(3, "0")}
+                          {String(pageStartIndex + i + 1).padStart(3, "0")}
                         </td>
                         {/* Tipo */}
                         <td className="px-4 py-3 whitespace-nowrap">
@@ -351,20 +432,74 @@ export default function ControlAccionesPage() {
                         </td>
                         {/* Resp. Seguimiento — editable */}
                         <td className="px-3 py-2 min-w-44">
-                          <input
-                            type="text"
-                            value={row.resp_seguimiento ?? ""}
-                            onChange={(e) => updateRow(row.id, { resp_seguimiento: e.target.value || null })}
-                            placeholder="Sin asignar"
-                            className="w-full text-xs text-slate-600 placeholder:text-slate-300 placeholder:italic bg-transparent border border-transparent rounded px-1.5 py-1 hover:border-slate-200 hover:bg-slate-50 focus:outline-none focus:border-[#105789]/40 focus:bg-blue-50/40 transition-all"
-                          />
-                          <input
-                            type="email"
-                            value={row.resp_seguimiento_email ?? ""}
-                            onChange={(e) => updateRow(row.id, { resp_seguimiento_email: e.target.value || null })}
-                            placeholder="correo@empresa.com"
-                            className="w-full mt-0.5 text-[11px] text-slate-400 placeholder:text-slate-200 bg-transparent border border-transparent rounded px-1.5 py-0.5 hover:border-slate-200 hover:bg-slate-50 focus:outline-none focus:border-[#105789]/40 focus:bg-blue-50/40 transition-all"
-                          />
+                          {(() => {
+                            const selected = getSeguimientoSlots(row);
+                            return (
+                              <div className="space-y-1">
+                                {selected.map((selectedName, idx) => {
+                                  const selectedByOthers = new Set(
+                                    selected
+                                      .filter((_, i) => i !== idx)
+                                      .map((n) => n.trim())
+                                      .filter(Boolean)
+                                  );
+
+                                  return (
+                                    <div key={`${row.id}-resp-seg-${idx}`} className="flex items-center gap-1">
+                                      <select
+                                        value={selectedName}
+                                        onChange={(e) => {
+                                          const next = [...selected];
+                                          next[idx] = e.target.value;
+                                          setSeguimientoDrafts((prev) => ({ ...prev, [row.id]: next }));
+                                          updateRow(row.id, { resp_seguimiento: serializeSeguimientoResponsables(next) });
+                                        }}
+                                        className="w-full text-xs text-slate-600 bg-transparent border border-transparent rounded px-1.5 py-1 hover:border-slate-200 hover:bg-slate-50 focus:outline-none focus:border-[#105789]/40 focus:bg-blue-50/40 transition-all"
+                                      >
+                                        <option value="">Sin asignar</option>
+                                        {selectedName && !RESPONSABLES_SEGUIMIENTO.includes(selectedName) && (
+                                          <option value={selectedName}>{selectedName}</option>
+                                        )}
+                                        {RESPONSABLES_SEGUIMIENTO.map((name) => (
+                                          <option key={name} value={name} disabled={selectedByOthers.has(name)}>
+                                            {name}
+                                          </option>
+                                        ))}
+                                      </select>
+                                      {selected.length > 1 && (
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            const next = selected.filter((_, i) => i !== idx);
+                                            setSeguimientoDrafts((prev) => ({ ...prev, [row.id]: next.length > 0 ? next : [""] }));
+                                            updateRow(row.id, { resp_seguimiento: serializeSeguimientoResponsables(next) });
+                                          }}
+                                          className="text-[11px] px-1.5 py-1 rounded border border-slate-200 text-slate-500 hover:bg-slate-50"
+                                          title="Eliminar responsable"
+                                        >
+                                          x
+                                        </button>
+                                      )}
+                                    </div>
+                                  );
+                                })}
+
+                                {selected.length < 3 && (
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      const next = [...selected, ""];
+                                      setSeguimientoDrafts((prev) => ({ ...prev, [row.id]: next }));
+                                      updateRow(row.id, { resp_seguimiento: serializeSeguimientoResponsables(next) });
+                                    }}
+                                    className="text-[11px] px-2 py-0.5 rounded border border-dashed border-slate-300 text-slate-500 hover:bg-slate-50"
+                                  >
+                                    + Agregar responsable
+                                  </button>
+                                )}
+                              </div>
+                            );
+                          })()}
                         </td>
                         {/* Fuente */}
                         <td className="px-4 py-3 text-xs text-slate-500 max-w-45">
@@ -399,15 +534,24 @@ export default function ControlAccionesPage() {
                             <option value="No">No</option>
                           </select>
                         </td>
-                        {/* Cierre estimado */}
-                        <td className="px-4 py-3 font-mono text-xs text-slate-500 whitespace-nowrap">
-                          {fmtDate(row.cierre_estimado ?? row.fecha_limite)}
+                        {/* Cierre estimado — editable only for admin */}
+                        <td className="px-3 py-2 whitespace-nowrap">
+                          {session?.role === "admin" ? (
+                            <input
+                              type="date"
+                              value={toDateInputValue(row.cierre_estimado)}
+                              onChange={(e) => updateRow(row.id, { cierre_estimado: e.target.value || null })}
+                              className="text-xs font-mono text-slate-500 bg-transparent border border-transparent rounded px-1.5 py-1 hover:border-slate-200 hover:bg-slate-50 focus:outline-none focus:border-[#105789]/40 focus:bg-blue-50/40 transition-all"
+                            />
+                          ) : (
+                            <span className="text-xs font-mono text-slate-500">{fmtDate(row.cierre_estimado)}</span>
+                          )}
                         </td>
                         {/* Fecha verificación eficacia — editable */}
                         <td className="px-3 py-2 whitespace-nowrap">
                           <input
                             type="date"
-                            value={row.fecha_verificacion_eficacia ?? ""}
+                            value={toDateInputValue(row.fecha_verificacion_eficacia)}
                             onChange={(e) => updateRow(row.id, { fecha_verificacion_eficacia: e.target.value || null })}
                             className="text-xs font-mono text-slate-500 bg-transparent border border-transparent rounded px-1.5 py-1 hover:border-slate-200 hover:bg-slate-50 focus:outline-none focus:border-[#105789]/40 focus:bg-blue-50/40 transition-all"
                           />
@@ -461,12 +605,31 @@ export default function ControlAccionesPage() {
           </div>
 
           {/* Footer row */}
-          <div className="px-5 py-3 border-t border-slate-100 text-xs text-slate-400 font-mono flex items-center justify-between flex-wrap gap-2">
+          <div className="px-5 py-3 border-t border-slate-100 text-xs text-slate-400 font-mono flex flex-col md:flex-row md:items-center justify-between gap-2">
             <span>
-              Control de Acciones Correctivas y/o de Mejora · GIN V07 · {selectedYear}
+              Control de Acciones Correctivas y/o de Mejora · {selectedYear}
             </span>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                disabled={currentPage === 1 || filteredRows.length === 0}
+                className="px-2 py-1 rounded border border-slate-200 text-slate-500 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-50"
+              >
+                Anterior
+              </button>
+              <span className="text-slate-500">
+                Página {currentPage} de {totalPages}
+              </span>
+              <button
+                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                disabled={currentPage === totalPages || filteredRows.length === 0}
+                className="px-2 py-1 rounded border border-slate-200 text-slate-500 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-50"
+              >
+                Siguiente
+              </button>
+            </div>
             <span>
-              {filteredRows.length} de {rows.length} registro{rows.length !== 1 ? "s" : ""}
+              {filteredRows.length} de {rows.length} registro{rows.length !== 1 ? "s" : ""} · Mostrando {filteredRows.length === 0 ? 0 : pageStartIndex + 1}-{Math.min(pageStartIndex + PAGE_SIZE, filteredRows.length)}
             </span>
           </div>
         </div>

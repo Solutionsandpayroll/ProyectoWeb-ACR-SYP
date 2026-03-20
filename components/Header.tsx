@@ -49,12 +49,12 @@ export default function Header({ title, subtitle }: HeaderProps) {
   }, [session]);
 
   return (
-    <header className="bg-white border-b border-slate-200 px-8 py-4 flex items-center justify-between">
+    <header className="bg-white border-b border-slate-200 px-4 sm:px-6 md:px-8 py-3 sm:py-4 flex items-center justify-between gap-3">
       {/* Page title */}
-      <div>
-        <h1 className="text-xl font-bold text-slate-800">{title}</h1>
+      <div className="min-w-0">
+        <h1 className="text-base sm:text-lg md:text-xl font-bold text-slate-800 truncate">{title}</h1>
         {subtitle && (
-          <p className="text-sm text-slate-500 mt-0.5">{subtitle}</p>
+          <p className="text-xs sm:text-sm text-slate-500 mt-0.5 truncate">{subtitle}</p>
         )}
       </div>
 

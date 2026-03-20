@@ -100,8 +100,8 @@ export default function AcrEliminadasPage() {
   return (
     <div className="min-h-screen bg-linear-to-br from-slate-50 to-blue-50">
       <Header title="ACRs Eliminadas" subtitle="Histórico de ACRs eliminadas para trazabilidad y auditoría" />
-      <main className="max-w-7xl mx-auto px-6 py-8">
-        <div className="flex items-center gap-1.5 text-sm text-slate-500 hover:text-[#105789] transition-colors font-medium cursor-pointer mb-6">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
+        <div className="flex items-center gap-1.5 text-sm text-slate-500 hover:text-[#105789] transition-colors font-medium cursor-pointer mb-6 flex-wrap">
           <button
             onClick={() => router.push("/dashboard/historial-acr")}
             className="inline-flex items-center gap-2"
@@ -147,7 +147,7 @@ export default function AcrEliminadasPage() {
         {!loading && !error && records.length > 0 && (
           <div className="bg-white rounded-lg border border-slate-200 overflow-hidden shadow-sm">
             <div className="overflow-x-auto">
-              <table className="w-full text-sm">
+              <table className="w-full text-sm" style={{ minWidth: 980 }}>
                 <thead className="bg-slate-50 border-b border-slate-200">
                   <tr>
                     <th className="px-6 py-3 text-left font-semibold text-slate-700">

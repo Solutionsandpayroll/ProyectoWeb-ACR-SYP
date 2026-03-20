@@ -5,39 +5,13 @@ import { useParams, useRouter } from "next/navigation";
 import Image from "next/image";
 import EvidenciaUpload from "@/components/EvidenciaUpload";
 import Header from "@/components/Header";
+import { getCargosForFechaRegistro, getSalarioPorCargo } from "@/lib/cargo-scale";
 
 // â”€â”€â”€ Salary Table â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-const CARGOS: { cargo: string; salario: number }[] = [
-  { cargo: "Director General",                        salario: 19217000 },
-  { cargo: "Director de operaciones",                 salario: 19217000 },
-  { cargo: "Gerente de Nomina y ADP",                 salario: 8000000 },
-  { cargo: "Gerente Comercial",                       salario: 8000000 },
-  { cargo: "Lider de Administración de personal",     salario: 6158000 },
-  { cargo: "Lider de Gestión Humana",                 salario: 6158000 },
-  { cargo: "Lider de Employer of Record Colombia",    salario: 6158000 },
-  { cargo: "Lider Outsourcing de Tesoreria",          salario: 6158000 },
-  { cargo: "Profesional SGI",                         salario: 5119000 },
-  { cargo: "Profesional de Nomina",                   salario: 5119000 },
-  { cargo: "Profesional Back office Sucursales",      salario: 5119000 },
-  { cargo: "Analista Administrativo y financiero",    salario: 4183000 },
-  { cargo: "Analista de Nómina",                      salario: 4183000 },
-  { cargo: "Analista Administración de personal",     salario: 4183000 },
-  { cargo: "Analista de EoR",                         salario: 4183000 },
-  { cargo: "Tecnico de Automatización",               salario: 4183000 },
-  { cargo: "Asistente Administrativo y Financiero",   salario: 3335000 },
-  { cargo: "Asistente Comercial",                     salario: 3335000 },
-  { cargo: "Asistente de Comunicación y Marketing",   salario: 3335000 },
-  { cargo: "Asistente de Nómina",                     salario: 3335000 },
-  { cargo: "Asistente Administración de Personal",    salario: 3335000 },
-  { cargo: "Asistente de EoR",                        salario: 3335000 },
-  { cargo: "Asistente de tesorería",                  salario: 3335000 },
-  { cargo: "Auxiliar de nomina",                      salario: 2627000 },
-];
-
-const calcCosto = (cargo: string, horas: number): number => {
-  const found = CARGOS.find((c) => c.cargo === cargo);
-  if (!found || !horas) return 0;
-  return Math.round((found.salario / 180) * horas);
+const calcCostoByRegistroDate = (cargo: string, horas: number, fechaRegistro?: string): number => {
+  const salario = getSalarioPorCargo(cargo, fechaRegistro ?? null);
+  if (!salario || !horas) return 0;
+  return Math.round((salario / 180) * horas);
 };
 
 const parseDecimalInput = (value: string): number | "" => {
@@ -127,6 +101,8 @@ interface ApiData {
     eficacia_no_conformidades: string | null;
     eficacia_nuevos_riesgos:   string | null;
     eficacia_cambios_sgi:      string | null;
+    fecha_cierre: string | null;
+    responsable_cierre: string | null;
   };
   actividades_correccion: ActCorr[];
   causas: { inmediatas: string[]; raiz: string[] };
@@ -173,6 +149,8 @@ type EditData = {
   eficaciaNoConformidades: string;
   eficaciaNuevosRiesgos:   string;
   eficaciaCambiosSgi:      string;
+  fechaCierre: string;
+  responsableCierre: string;
 };
 
 // â”€â”€â”€ Factories â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -288,6 +266,8 @@ function initEditData(d: ApiData): EditData {
     eficaciaNoConformidades: reg.eficacia_no_conformidades ?? "",
     eficaciaNuevosRiesgos:   reg.eficacia_nuevos_riesgos   ?? "",
     eficaciaCambiosSgi:      reg.eficacia_cambios_sgi      ?? "",
+    fechaCierre:             toInputDate(reg.fecha_cierre),
+    responsableCierre:       reg.responsable_cierre ?? "",
   };
 }
 
@@ -316,11 +296,11 @@ function Field({ label, value }: { label: string; value: string | null | undefin
   );
 }
 
-function CargoSelect({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+function CargoSelect({ value, onChange, cargos }: { value: string; onChange: (v: string) => void; cargos: { cargo: string }[] }) {
   return (
     <select value={value} onChange={(e) => onChange(e.target.value)} className={inputCls}>
       <option value="">Cargo...</option>
-      {CARGOS.map((c) => <option key={c.cargo} value={c.cargo}>{c.cargo}</option>)}
+      {cargos.map((c) => <option key={c.cargo} value={c.cargo}>{c.cargo}</option>)}
     </select>
   );
 }
@@ -354,6 +334,8 @@ const CARGO_EN_MAP: Record<string, string> = {
   "Asistente de EoR": "EoR Assistant",
   "Asistente de tesorería": "Treasury Assistant",
   "Auxiliar de nomina": "Payroll Assistant",
+  "Aprendiz": "Apprentice",
+  "Practicante": "Intern",
 };
 
 const ESTADO_EN_MAP: Record<string, string> = {
@@ -394,6 +376,7 @@ export default function AcrDetailPage() {
   const [deleteReason, setDeleteReason] = useState("");
   const [session, setSession] = useState<SessionData | null>(null);
 
+  const isAdmin = session?.role === "admin";
   const canEditExecutionDates = session?.role === "admin";
 
   // Helper: returns translated text if available, otherwise the original
@@ -541,6 +524,16 @@ export default function AcrDetailPage() {
     }
   };
 
+  const fechaRegistroEscala = editData?.fechaRegistro || toInputDate(data?.registro?.fecha_registro);
+  const cargosDisponibles = useMemo(
+    () => getCargosForFechaRegistro(fechaRegistroEscala),
+    [fechaRegistroEscala]
+  );
+  const calcCosto = useCallback(
+    (cargo: string, horas: number) => calcCostoByRegistroDate(cargo, horas, fechaRegistroEscala),
+    [fechaRegistroEscala]
+  );
+
   // â”€â”€ Calculated totals (reactive) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const totalCorreccion = useMemo(() => {
     if (!editData) return 0;
@@ -549,7 +542,7 @@ export default function AcrDetailPage() {
         (s, r) => s + calcCosto(r.cargo, Number(r.horas) || 0), 0
       ), 0
     );
-  }, [editData]);
+  }, [editData, calcCosto]);
 
   const totalPlanEjecucion = useMemo(() => {
     if (!editData) return 0;
@@ -558,7 +551,7 @@ export default function AcrDetailPage() {
         (s, r) => s + calcCosto(r.cargoEjecucion, Number(r.horasEjecucion) || 0), 0
       ), 0
     );
-  }, [editData]);
+  }, [editData, calcCosto]);
 
   const totalPlanSeguimiento = useMemo(() => {
     if (!editData) return 0;
@@ -567,7 +560,7 @@ export default function AcrDetailPage() {
         (s, r) => s + calcCosto(r.cargoSeguimiento, Number(r.horasSeguimiento) || 0), 0
       ), 0
     );
-  }, [editData]);
+  }, [editData, calcCosto]);
 
   const totalExtra = useMemo(() => {
     if (!editData) return 0;
@@ -576,6 +569,59 @@ export default function AcrDetailPage() {
   }, [editData]);
 
   const grandTotal = totalCorreccion + totalPlanEjecucion + totalPlanSeguimiento + totalExtra;
+
+  const totalCorreccionVista = useMemo(() => {
+    if (!data) return 0;
+    return data.actividades_correccion.reduce(
+      (sum, act) =>
+        sum +
+        (act.responsables ?? []).reduce(
+          (s, r) => s + calcCosto(r.cargo ?? "", Number(r.horas) || 0),
+          0
+        ),
+      0
+    );
+  }, [data, calcCosto]);
+
+  const totalPlanEjecucionVista = useMemo(() => {
+    if (!data) return 0;
+    return data.actividades_plan.reduce(
+      (sum, act) =>
+        sum +
+        (act.responsables_ejecucion ?? []).reduce(
+          (s, r) => s + calcCosto(r.cargo ?? "", Number(r.horas) || 0),
+          0
+        ),
+      0
+    );
+  }, [data, calcCosto]);
+
+  const totalPlanSeguimientoVista = useMemo(() => {
+    if (!data) return 0;
+    return data.actividades_plan.reduce(
+      (sum, act) =>
+        sum +
+        (act.responsables_seguimiento ?? []).reduce(
+          (s, r) => s + calcCosto(r.cargo ?? "", Number(r.horas) || 0),
+          0
+        ),
+      0
+    );
+  }, [data, calcCosto]);
+
+  const totalExtraVista = useMemo(() => {
+    if (!data) return 0;
+    return (
+      Number(data.costos.perdida_ingresos ?? 0) +
+      Number(data.costos.multas_sanciones ?? 0) +
+      Number(data.costos.otros_costos_internos ?? 0) +
+      Number(data.costos.descuentos_cliente ?? 0) +
+      Number(data.costos.otros_costos ?? 0)
+    );
+  }, [data]);
+
+  const grandTotalVista =
+    totalCorreccionVista + totalPlanEjecucionVista + totalPlanSeguimientoVista + totalExtraVista;
 
   // â”€â”€ AllCausas for plan checkboxes â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const allCausas = useMemo(() => {
@@ -684,6 +730,8 @@ export default function AcrDetailPage() {
         eficaciaNoConformidades: editData.eficaciaNoConformidades || null,
         eficaciaNuevosRiesgos:   editData.eficaciaNuevosRiesgos   || null,
         eficaciaCambiosSgi:      editData.eficaciaCambiosSgi      || null,
+        fechaCierre:             editData.fechaCierre || null,
+        responsableCierre:       editData.responsableCierre || null,
       };
       const res = await fetch(`/api/acr/${id}`, {
         method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload),
@@ -781,7 +829,7 @@ export default function AcrDetailPage() {
         />
       </div>
 
-      <main className="flex-1 p-6 max-w-6xl mx-auto w-full">
+      <main className="flex-1 p-4 sm:p-6 max-w-6xl mx-auto w-full">
         {/* ── Toolbar ─────────────────────────────────────────────────────── */}
         <div className="flex items-center justify-between mb-5 flex-wrap gap-3">
           <button
@@ -794,7 +842,7 @@ export default function AcrDetailPage() {
             {fx("Volver al historial", "Back to history")}
           </button>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 flex-wrap justify-end w-full sm:w-auto">
             {saveOk && !isEditing && (
               <span className="text-xs text-emerald-600 font-semibold bg-emerald-50 border border-emerald-200 px-3 py-1.5 rounded-full">
                 ✓ {fx("Cambios guardados", "Changes saved")}
@@ -879,31 +927,32 @@ export default function AcrDetailPage() {
 
           {/* Document header */}
           <div
-            className="px-6 py-4 flex items-center justify-between gap-4 flex-wrap"
+            className="px-4 sm:px-6 py-4 flex items-center justify-between gap-4 flex-wrap"
             style={{ backgroundColor: "#105789", WebkitPrintColorAdjust: "exact", printColorAdjust: "exact" } as React.CSSProperties}
           >
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-3 sm:gap-4 min-w-0">
               <Image
                 src="/Titulo_empresa_v2.png"
                 alt="ACR"
                 width={180}
                 height={64}
-                className="object-contain"
+                className="object-contain w-36 sm:w-45"
                 unoptimized
                 style={{ filter: "brightness(0) invert(1)" }}
               />
-              <div className="w-px h-10 bg-white/20" />
+              <div className="hidden sm:block w-px h-10 bg-white/20" />
               <div>
                 <p className="text-white/60 text-xs uppercase tracking-widest font-semibold mb-1">{fx("Acciones Correctivas y de Mejora · GIN · V07", "Corrective and Improvement Actions · GIN · V07")}</p>
                 <p className="text-white font-bold text-xl font-mono">{reg.consecutivo}</p>
               </div>
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 flex-wrap justify-end">
               {isEditing && ed ? (
                 <>
                   <select
                     value={ed.estado}
                     onChange={(e) => {
+                      if (!isAdmin) return;
                       const next = e.target.value;
                       if (next === "Cerrada") {
                         const corrIncompleta = ed.actividadesCorreccion.some(
@@ -922,7 +971,11 @@ export default function AcrDetailPage() {
                       setEstadoError(null);
                       setED({ estado: next });
                     }}
-                    className="text-sm font-semibold border-2 border-white/30 bg-white/10 text-white rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-white/50"
+                    disabled={!isAdmin}
+                    title={!isAdmin ? "Solo Admin puede cambiar el estado del ACR" : undefined}
+                    className={`text-sm font-semibold border-2 border-white/30 bg-white/10 text-white rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-white/50 ${
+                      !isAdmin ? "opacity-60 cursor-not-allowed" : ""
+                    }`}
                   >
                     {ESTADOS_ACR.map((s) => <option key={s} className="text-slate-800">{s}</option>)}
                   </select>
@@ -945,7 +998,7 @@ export default function AcrDetailPage() {
 
           {/* ── SECTION 1: Datos Generales ───────────────────────────────── */}
           <SecTitle n={1} label={fx("Datos Generales", "General Information")} />
-          <div className="px-6 py-5 grid grid-cols-2 md:grid-cols-4 gap-x-6 gap-y-4 border-b border-slate-200">
+          <div className="px-4 sm:px-6 py-5 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-x-6 gap-y-4 border-b border-slate-200">
             {isEditing && ed ? (
               <>
                 <div>
@@ -1025,7 +1078,7 @@ export default function AcrDetailPage() {
 
           {/* ── SECTION 2: Descripción ──────────────────────────────────── */}
           <SecTitle n={2} label={fx("Descripción de la Situación", "Situation Description")} />
-          <div className="px-6 py-5 border-b border-slate-200">
+          <div className="px-4 sm:px-6 py-5 border-b border-slate-200">
             {isEditing && ed ? (
               <textarea
                 value={ed.descripcion}
@@ -1043,7 +1096,7 @@ export default function AcrDetailPage() {
 
           {/* ── SECTION 3: Corrección ───────────────────────────────────── */}
           <SecTitle n={3} label={fx("Corrección", "Correction")} />
-          <div className="px-6 py-5 border-b border-slate-200 space-y-4">
+          <div className="px-4 sm:px-6 py-5 border-b border-slate-200 space-y-4">
             {isEditing && ed ? (
               <>
                 {ed.actividadesCorreccion.map((act, ai) => (
@@ -1095,7 +1148,7 @@ export default function AcrDetailPage() {
                                   <input className="w-32 text-xs border border-slate-200 rounded px-2 py-1 focus:outline-none focus:border-[#105789]" value={r.nombre} placeholder="Nombre" onChange={(e) => updCorrResp(ai, ri, { nombre: e.target.value })} />
                                 </td>
                                 <td className="px-2 py-1.5">
-                                  <CargoSelect value={r.cargo} onChange={(v) => updCorrResp(ai, ri, { cargo: v })} />
+                                  <CargoSelect value={r.cargo} onChange={(v) => updCorrResp(ai, ri, { cargo: v })} cargos={cargosDisponibles} />
                                 </td>
                                 <td className="px-2 py-1.5">
                                   <input type="number" step="any" min="0" className="w-16 text-xs border border-slate-200 rounded px-2 py-1 focus:outline-none focus:border-[#105789]" value={r.horas} onChange={(e) => updCorrResp(ai, ri, { horas: parseDecimalInput(e.target.value) })} />
@@ -1176,7 +1229,7 @@ export default function AcrDetailPage() {
                                   <td className="px-4 py-2 text-slate-600">{r.horas}</td>
                                   <td className="px-4 py-2 text-slate-500">{fmtDate(r.fecha_inicio)}</td>
                                   <td className="px-4 py-2 text-slate-500">{fmtDate(r.fecha_fin)}</td>
-                                  <td className="px-4 py-2 font-mono text-slate-700">{fmtCOP(Number(r.costo))}</td>
+                                  <td className="px-4 py-2 font-mono text-slate-700">{fmtCOP(calcCosto(r.cargo ?? "", Number(r.horas) || 0))}</td>
                                 </tr>
                               ))}
                             </tbody>
@@ -1223,7 +1276,7 @@ export default function AcrDetailPage() {
 
           {/* ── SECTION 4: Causas ───────────────────────────────────────── */}
           <SecTitle n={4} label={fx("Identificación de Causas", "Cause Identification")} />
-          <div className="px-6 py-5 border-b border-slate-200 space-y-4">
+          <div className="px-4 sm:px-6 py-5 border-b border-slate-200 space-y-4">
             {isEditing && ed ? (
               <>
                 <div className="grid md:grid-cols-2 gap-6">
@@ -1287,7 +1340,7 @@ export default function AcrDetailPage() {
 
           {/* ── SECTION 5: Plan de Acción ───────────────────────────────── */}
           <SecTitle n={5} label={fx("Plan de Acción", "Action Plan")} />
-          <div className="px-6 py-5 border-b border-slate-200 space-y-4">
+          <div className="px-4 sm:px-6 py-5 border-b border-slate-200 space-y-4">
             {isEditing && ed ? (
               <>
                 {ed.actividadesPlan.map((act, ai) => (
@@ -1327,7 +1380,7 @@ export default function AcrDetailPage() {
                             <div className="space-y-2">
                               <p className="text-[10px] font-bold uppercase text-blue-600 tracking-wide">Ejecución</p>
                               <input placeholder="Nombre" value={r.nombreEjecucion} onChange={(e) => updPlanResp(ai, ri, { nombreEjecucion: e.target.value })} className="w-full text-xs border border-slate-200 rounded px-2 py-1.5 focus:outline-none focus:border-[#105789]" />
-                              <CargoSelect value={r.cargoEjecucion} onChange={(v) => updPlanResp(ai, ri, { cargoEjecucion: v })} />
+                              <CargoSelect value={r.cargoEjecucion} onChange={(v) => updPlanResp(ai, ri, { cargoEjecucion: v })} cargos={cargosDisponibles} />
                               <div className="flex gap-2">
                                 <div className="flex-1">
                                   <label className="text-[10px] text-slate-400">Horas</label>
@@ -1361,7 +1414,7 @@ export default function AcrDetailPage() {
                             <div className="space-y-2">
                               <p className="text-[10px] font-bold uppercase text-emerald-600 tracking-wide">Seguimiento</p>
                               <input placeholder="Nombre" value={r.nombreSeguimiento} onChange={(e) => updPlanResp(ai, ri, { nombreSeguimiento: e.target.value })} className="w-full text-xs border border-slate-200 rounded px-2 py-1.5 focus:outline-none focus:border-[#105789]" />
-                              <CargoSelect value={r.cargoSeguimiento} onChange={(v) => updPlanResp(ai, ri, { cargoSeguimiento: v })} />
+                              <CargoSelect value={r.cargoSeguimiento} onChange={(v) => updPlanResp(ai, ri, { cargoSeguimiento: v })} cargos={cargosDisponibles} />
                               <div className="flex gap-2">
                                 <div className="flex-1">
                                   <label className="text-[10px] text-slate-400">Horas</label>
@@ -1455,7 +1508,7 @@ export default function AcrDetailPage() {
                                     <div><span className="text-slate-400 font-semibold">{fx("Nombre", "Name")}: </span><span className="text-slate-800">{r.nombre ?? "—"}</span></div>
                                     <div><span className="text-slate-400 font-semibold">{fx("Cargo", "Position")}: </span><span className="text-slate-700">{cargoLabel(r.cargo)}</span></div>
                                     <div><span className="text-slate-400 font-semibold">{fx("Horas", "Hours")}: </span><span className="text-slate-700">{r.horas}h</span></div>
-                                    <div><span className="text-slate-400 font-semibold">{fx("Costo", "Cost")}: </span><span className="font-mono text-blue-700">{r.costo > 0 ? `$${Number(r.costo).toLocaleString("es-CO")}` : "—"}</span></div>
+                                    <div><span className="text-slate-400 font-semibold">{fx("Costo", "Cost")}: </span><span className="font-mono text-blue-700">{fmtCOP(calcCosto(r.cargo ?? "", Number(r.horas) || 0))}</span></div>
                                     {r.fecha_inicio && (
                                       <div className="col-span-2"><span className="text-slate-400 font-semibold">{fx("Período", "Period")}: </span><span className="text-slate-600">{fmtDate(r.fecha_inicio)} → {fmtDate(r.fecha_fin)}</span></div>
                                     )}
@@ -1472,7 +1525,7 @@ export default function AcrDetailPage() {
                                     <div><span className="text-slate-400 font-semibold">{fx("Nombre", "Name")}: </span><span className="text-slate-800">{r.nombre ?? "—"}</span></div>
                                     <div><span className="text-slate-400 font-semibold">{fx("Cargo", "Position")}: </span><span className="text-slate-700">{cargoLabel(r.cargo)}</span></div>
                                     <div><span className="text-slate-400 font-semibold">{fx("Horas", "Hours")}: </span><span className="text-slate-700">{r.horas}h</span></div>
-                                    <div><span className="text-slate-400 font-semibold">{fx("Costo", "Cost")}: </span><span className="font-mono text-emerald-700">{r.costo > 0 ? `$${Number(r.costo).toLocaleString("es-CO")}` : "—"}</span></div>
+                                    <div><span className="text-slate-400 font-semibold">{fx("Costo", "Cost")}: </span><span className="font-mono text-emerald-700">{fmtCOP(calcCosto(r.cargo ?? "", Number(r.horas) || 0))}</span></div>
                                     <div className="col-span-2 flex items-center gap-1.5"><span className="text-slate-400 font-semibold">{fx("Estado", "Status")}: </span>
                                       <span className={`inline-block font-semibold rounded px-1.5 py-0.5 ${
                                         r.estado === "Completado" ? "bg-emerald-100 text-emerald-700" :
@@ -1531,7 +1584,7 @@ export default function AcrDetailPage() {
 
           {/* ── SECTION 6: Revisión de Eficacia ────────────────────────── */}
           <SecTitle n={6} label={fx("REVISIÓN DE LA EFICACIA DE LAS ACCIONES TOMADAS (Responsable del SGI)", "REVIEW OF THE EFFECTIVENESS OF ACTIONS TAKEN (IMS Responsible)")} />
-          <div className="px-6 py-5 border-b border-slate-200">
+          <div className="px-4 sm:px-6 py-5 border-b border-slate-200">
             {(() => {
               const PREGUNTAS: { key: keyof Pick<EditData, 'eficaciaAccionAdecuada' | 'eficaciaNoConformidades' | 'eficaciaNuevosRiesgos' | 'eficaciaCambiosSgi'>; label: string }[] = [
                 { key: 'eficaciaAccionAdecuada',  label: fx('¿La acción tomada fue adecuada, conveniente y eficaz?', 'Was the action taken adequate, appropriate, and effective?') },
@@ -1601,10 +1654,10 @@ export default function AcrDetailPage() {
 
           {/* ── SECTION 7: Costos ───────────────────────────────────────── */}
           <SecTitle n={7} label={fx("Costos Asociados a la ACR", "Costs Associated with the ACR")} />
-          <div className="px-6 py-5">
+          <div className="px-4 sm:px-6 py-5">
             {isEditing && ed ? (
               <div className="space-y-4">
-                <div className="grid grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   {([
                     [fx("Costo corrección", "Correction cost"),  totalCorreccion      ],
                     [fx("Costo plan acción", "Action plan cost"), totalPlanEjecucion   ],
@@ -1642,11 +1695,11 @@ export default function AcrDetailPage() {
                 </div>
               </div>
             ) : (
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
                 {([
-                  [fx("Costo corrección", "Correction cost"),      data.costos.costo_correccion      ],
-                  [fx("Costo plan acción", "Action plan cost"),     data.costos.costo_plan_accion     ],
-                  [fx("Costo seguimiento", "Follow-up cost"),     data.costos.costo_plan_seguimiento],
+                  [fx("Costo corrección", "Correction cost"),      totalCorreccionVista      ],
+                  [fx("Costo plan acción", "Action plan cost"),     totalPlanEjecucionVista     ],
+                  [fx("Costo seguimiento", "Follow-up cost"),     totalPlanSeguimientoVista],
                   [fx("Pérdida de ingresos", "Revenue loss"),   data.costos.perdida_ingresos      ],
                   [fx("Multas / sanciones", "Fines / penalties"),    data.costos.multas_sanciones      ],
                   [fx("Otros costos internos", "Other internal costs"), data.costos.otros_costos_internos ],
@@ -1666,8 +1719,51 @@ export default function AcrDetailPage() {
                 >
                   <span className="text-white/80 text-xs font-semibold uppercase tracking-widest">{fx("Costo Total ACR", "Total ACR Cost")}</span>
                   <span className="text-white font-bold font-mono text-lg">
-                    {fmtCOP(Number(data.costos.costo_total))}
+                    {fmtCOP(grandTotalVista)}
                   </span>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* ── SECTION 8: Cierre de la Acción ─────────────────────────── */}
+          <SecTitle n={8} label={fx("CIERRE DE LA ACCIÓN IMPLEMENTADA  (Responsable del SGI)", "ACTION CLOSURE (SGI Responsible)")} />
+          <div className="px-4 sm:px-6 py-5">
+            {isEditing && ed ? (
+              <div className="grid md:grid-cols-2 gap-6">
+                <div>
+                  <label className={labelCls}>{fx("Fecha de cierre", "Closure date")}</label>
+                  <input
+                    type="date"
+                    value={ed.fechaCierre}
+                    onChange={(e) => setED({ fechaCierre: e.target.value })}
+                    disabled={session?.role !== "admin"}
+                    title={session?.role !== "admin" ? "Solo Admin puede cerrar ACRs" : undefined}
+                    className={`${inputCls} ${session?.role !== "admin" ? "bg-slate-100 text-slate-400 cursor-not-allowed" : ""}`}
+                  />
+                </div>
+                <div>
+                  <label className={labelCls}>{fx("Responsable del cierre", "Closure responsible")}</label>
+                  <input
+                    type="text"
+                    value={ed.responsableCierre}
+                    onChange={(e) => setED({ responsableCierre: e.target.value })}
+                    placeholder={fx("Nombre de la persona responsable", "Name of responsible person")}
+                    disabled={session?.role !== "admin"}
+                    title={session?.role !== "admin" ? "Solo Admin puede cerrar ACRs" : undefined}
+                    className={`${inputCls} ${session?.role !== "admin" ? "bg-slate-100 text-slate-400 cursor-not-allowed" : ""}`}
+                  />
+                </div>
+              </div>
+            ) : (
+              <div className="grid md:grid-cols-2 gap-6">
+                <div>
+                  <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-400 mb-1.5">{fx("Fecha de cierre", "Closure date")}</p>
+                  <p className="text-sm text-slate-800 font-medium">{reg.fecha_cierre ? fmtDate(reg.fecha_cierre) : <span className="text-slate-300">—</span>}</p>
+                </div>
+                <div>
+                  <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-400 mb-1.5">{fx("Responsable del cierre", "Closure responsible")}</p>
+                  <p className="text-sm text-slate-800 font-medium">{reg.responsable_cierre ?? <span className="text-slate-300">—</span>}</p>
                 </div>
               </div>
             )}
@@ -1678,7 +1774,7 @@ export default function AcrDetailPage() {
         {/* Delete Confirmation Modal */}
         {showDeleteModal && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-lg shadow-xl max-w-md w-96">
+            <div className="bg-white rounded-lg shadow-xl max-w-md w-[calc(100%-2rem)] sm:w-96">
               <div className="px-6 py-4 border-b border-slate-200">
                 <h2 className="text-lg font-bold text-slate-800">Eliminar ACR</h2>
               </div>

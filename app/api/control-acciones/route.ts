@@ -67,13 +67,7 @@ export async function GET(req: NextRequest) {
         cas.resp_ejecucion_email,
         cas.resp_seguimiento_email,
         cas.ultima_notificacion,
-        -- Cierre estimado: last ejecución fecha_fin from plan
-        (
-          SELECT MAX(rp.fecha_fin)
-          FROM actividades_plan ap
-          JOIN responsables_plan rp ON rp.actividad_plan_id = ap.id
-          WHERE ap.acr_id = r.id AND rp.tipo = 'ejecucion'
-        ) AS cierre_estimado
+        cas.cierre_estimado
       FROM acr_registros r
       LEFT JOIN control_acciones_seguimiento cas ON cas.acr_id = r.id
       WHERE EXTRACT(YEAR FROM COALESCE(r.fecha_registro, r.created_at::date)) = ${parseInt(year)}
@@ -94,7 +88,7 @@ export async function PATCH(req: NextRequest) {
   try {
     const body = await req.json();
     const { acr_id, resp_ejecucion, resp_seguimiento, eficaz, fecha_verificacion_eficacia, observaciones,
-            resp_ejecucion_email, resp_seguimiento_email } = body;
+            resp_ejecucion_email, resp_seguimiento_email, cierre_estimado } = body;
 
     if (!acr_id || typeof acr_id !== "number") {
       return NextResponse.json({ error: "acr_id requerido" }, { status: 400 });
@@ -103,11 +97,11 @@ export async function PATCH(req: NextRequest) {
     await sql`
       INSERT INTO control_acciones_seguimiento
         (acr_id, resp_ejecucion, resp_seguimiento, eficaz, fecha_verificacion_eficacia, observaciones,
-         resp_ejecucion_email, resp_seguimiento_email, updated_at)
+         resp_ejecucion_email, resp_seguimiento_email, cierre_estimado, updated_at)
       VALUES
         (${acr_id}, ${resp_ejecucion ?? null}, ${resp_seguimiento ?? null},
          ${eficaz ?? null}, ${fecha_verificacion_eficacia ?? null}, ${observaciones ?? null},
-         ${resp_ejecucion_email ?? null}, ${resp_seguimiento_email ?? null}, NOW())
+         ${resp_ejecucion_email ?? null}, ${resp_seguimiento_email ?? null}, ${cierre_estimado ?? null}, NOW())
       ON CONFLICT (acr_id) DO UPDATE SET
         resp_ejecucion              = EXCLUDED.resp_ejecucion,
         resp_seguimiento            = EXCLUDED.resp_seguimiento,
@@ -116,6 +110,7 @@ export async function PATCH(req: NextRequest) {
         observaciones               = EXCLUDED.observaciones,
         resp_ejecucion_email        = EXCLUDED.resp_ejecucion_email,
         resp_seguimiento_email      = EXCLUDED.resp_seguimiento_email,
+        cierre_estimado             = EXCLUDED.cierre_estimado,
         updated_at                  = NOW()
     `;
 

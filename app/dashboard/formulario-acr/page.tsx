@@ -3,39 +3,13 @@
 import { useState, useMemo, useEffect } from "react";
 import Header from "@/components/Header";
 import EvidenciaUpload from "@/components/EvidenciaUpload";
+import { getCargosForFechaRegistro, getSalarioPorCargo } from "@/lib/cargo-scale";
 
 // ─── Salary Table ───────────────────────────────────────────────────────────────
-const CARGOS: { cargo: string; salario: number }[] = [
-  { cargo: "Director General", salario: 19217000 },
-  { cargo: "Director de operaciones", salario: 19217000 },
-  { cargo: "Gerente de Nomina y ADP", salario: 8000000 },
-  { cargo: "Gerente Comercial", salario: 8000000 },
-  { cargo: "Lider de Administración de personal", salario: 6158000 },
-  { cargo: "Lider de Gestión Humana", salario: 6158000 },
-  { cargo: "Lider de Employer of Record Colombia", salario: 6158000 },
-  { cargo: "Lider Outsourcing de Tesoreria", salario: 6158000 },
-  { cargo: "Profesional SGI", salario: 5119000 },
-  { cargo: "Profesional de Nomina", salario: 5119000 },
-  { cargo: "Profesional Back office Sucursales", salario: 5119000 },
-  { cargo: "Analista Administrativo y financiero", salario: 4183000 },
-  { cargo: "Analista de Nómina", salario: 4183000 },
-  { cargo: "Analista Administración de personal", salario: 4183000 },
-  { cargo: "Analista de EoR", salario: 4183000 },
-  { cargo: "Tecnico de Automatización", salario: 4183000 },
-  { cargo: "Asistente Administrativo y Financiero", salario: 3335000 },
-  { cargo: "Asistente Comercial", salario: 3335000 },
-  { cargo: "Asistente de Comunicación y Marketing", salario: 3335000 },
-  { cargo: "Asistente de Nómina", salario: 3335000 },
-  { cargo: "Asistente Administración de Personal", salario: 3335000 },
-  { cargo: "Asistente de EoR", salario: 3335000 },
-  { cargo: "Asistente de tesorería", salario: 3335000 },
-  { cargo: "Auxiliar de nomina", salario: 2627000 },
-];
-
-const calcCosto = (cargo: string, horas: number): number => {
-  const found = CARGOS.find((c) => c.cargo === cargo);
-  if (!found || !horas) return 0;
-  return Math.round((found.salario / 180) * horas);
+const calcCosto = (cargo: string, horas: number, fechaRegistro?: string): number => {
+  const salario = getSalarioPorCargo(cargo, fechaRegistro ?? null);
+  if (!salario || !horas) return 0;
+  return Math.round((salario / 180) * horas);
 };
 
 const parseDecimalInput = (value: string): number | "" => {
@@ -221,10 +195,10 @@ function SectionCard({
 }) {
   return (
     <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-      <div className="bg-slate-50 border-b border-slate-200 px-7 py-4">
+      <div className="bg-slate-50 border-b border-slate-200 px-4 sm:px-6 md:px-7 py-4">
         <SectionHeader number={number} title={title} subtitle={subtitle} />
       </div>
-      <div className="px-7 py-6">{children}</div>
+      <div className="px-4 sm:px-6 md:px-7 py-5 sm:py-6">{children}</div>
     </div>
   );
 }
@@ -284,6 +258,14 @@ export default function FormularioAcrPage() {
   const setInfoField = (key: string, value: string) =>
     setInfo((p) => ({ ...p, [key]: value }));
 
+  const cargosDisponibles = useMemo(
+    () => getCargosForFechaRegistro(info.fechaRegistro),
+    [info.fechaRegistro]
+  );
+
+  const calcCostoActual = (cargo: string, horas: number) =>
+    calcCosto(cargo, horas, info.fechaRegistro);
+
   // ── Section 2 ──
   const [correccionActs, setCorreccionActs] = useState<ActividadCorreccion[]>([
     newActividadCorreccion(),
@@ -324,8 +306,8 @@ export default function FormularioAcrPage() {
     const procesoSeleccionado = pick(PROCESOS);
     const tipoAccion = pick(["Correctiva", "De mejora"]);
     const tratamiento = fuenteSeleccionada === "Salidas no conformes" ? pick(TRATAMIENTOS.slice(1)) : "";
-    const cargoEj = pick(CARGOS.map((c) => c.cargo));
-    const cargoSeg = pick(CARGOS.map((c) => c.cargo));
+    const cargoEj = pick(cargosDisponibles.map((c) => c.cargo));
+    const cargoSeg = pick(cargosDisponibles.map((c) => c.cargo));
     const horasEj = randInt(4, 20);
     const horasSeg = randInt(2, 10);
 
@@ -363,7 +345,7 @@ export default function FormularioAcrPage() {
         observaciones: "",
         responsables: [{
           nombre: pick(NOMBRES),
-          cargo: pick(CARGOS.map((c) => c.cargo)),
+          cargo: pick(cargosDisponibles.map((c) => c.cargo)),
           horas: randInt(2, 8),
           fechaInicio: dateStr(2),
           fechaFin: dateStr(6),
@@ -501,7 +483,7 @@ export default function FormularioAcrPage() {
         (sum, act) =>
           sum +
           act.responsables.reduce(
-            (s, r) => s + calcCosto(r.cargo, Number(r.horas) || 0),
+            (s, r) => s + calcCostoActual(r.cargo, Number(r.horas) || 0),
             0
           ),
         0
@@ -516,7 +498,7 @@ export default function FormularioAcrPage() {
           sum +
           act.responsables.reduce(
             (s, r) =>
-              s + calcCosto(r.cargoEjecucion, Number(r.horasEjecucion) || 0),
+              s + calcCostoActual(r.cargoEjecucion, Number(r.horasEjecucion) || 0),
             0
           ),
         0
@@ -532,7 +514,7 @@ export default function FormularioAcrPage() {
           act.responsables.reduce(
             (s, r) =>
               s +
-              calcCosto(r.cargoSeguimiento, Number(r.horasSeguimiento) || 0),
+              calcCostoActual(r.cargoSeguimiento, Number(r.horasSeguimiento) || 0),
             0
           ),
         0
@@ -709,7 +691,7 @@ export default function FormularioAcrPage() {
             evidencia:   a.evidencia   || null,
             observaciones: a.observaciones || null,
             costoTotal: a.responsables.reduce(
-              (s, r) => s + calcCosto(r.cargo, Number(r.horas) || 0), 0
+              (s, r) => s + calcCostoActual(r.cargo, Number(r.horas) || 0), 0
             ),
             responsables: a.responsables.map((r) => ({
               nombre:      r.nombre      || null,
@@ -717,7 +699,7 @@ export default function FormularioAcrPage() {
               horas:       Number(r.horas) || 0,
               fechaInicio: r.fechaInicio || null,
               fechaFin:    r.fechaFin    || null,
-              costo:       calcCosto(r.cargo, Number(r.horas) || 0),
+              costo:       calcCostoActual(r.cargo, Number(r.horas) || 0),
             })),
           })),
 
@@ -736,8 +718,8 @@ export default function FormularioAcrPage() {
             costoTotal: a.responsables.reduce(
               (s, r) =>
                 s +
-                calcCosto(r.cargoEjecucion,    Number(r.horasEjecucion)    || 0) +
-                calcCosto(r.cargoSeguimiento,  Number(r.horasSeguimiento)  || 0),
+                calcCostoActual(r.cargoEjecucion,    Number(r.horasEjecucion)    || 0) +
+                calcCostoActual(r.cargoSeguimiento,  Number(r.horasSeguimiento)  || 0),
               0
             ),
             responsables: a.responsables.map((r) => ({
@@ -746,13 +728,13 @@ export default function FormularioAcrPage() {
               horasEjecucion:      Number(r.horasEjecucion)   || 0,
               fechaInicioEjecucion: r.fechaInicioEjecucion || null,
               fechaFinEjecucion:   r.fechaFinEjecucion    || null,
-              costoEjecucion:      calcCosto(r.cargoEjecucion, Number(r.horasEjecucion) || 0),
+              costoEjecucion:      calcCostoActual(r.cargoEjecucion, Number(r.horasEjecucion) || 0),
               nombreSeguimiento:   r.nombreSeguimiento    || null,
               cargoSeguimiento:    r.cargoSeguimiento     || null,
               horasSeguimiento:    Number(r.horasSeguimiento) || 0,
               fechaSeguimiento:    r.fechaSeguimiento     || null,
               estadoSeguimiento:   r.estadoSeguimiento    || 'Abierta',
-              costoSeguimiento:    calcCosto(r.cargoSeguimiento, Number(r.horasSeguimiento) || 0),
+              costoSeguimiento:    calcCostoActual(r.cargoSeguimiento, Number(r.horasSeguimiento) || 0),
             })),
           })),
 
@@ -798,7 +780,7 @@ export default function FormularioAcrPage() {
         subtitle="Registra una nueva Acción Correctiva o de Mejora"
       />
 
-      <main className="flex-1 p-6">
+      <main className="flex-1 p-4 sm:p-6">
         <div className="max-w-6xl mx-auto">
           {/* Modals rendered via portal-like overlay */}
 
@@ -1048,7 +1030,7 @@ export default function FormularioAcrPage() {
                     {/* Responsables */}
                     <div className="space-y-3">
                       {act.responsables.map((resp, rIdx) => {
-                        const costo = calcCosto(
+                        const costo = calcCostoActual(
                           resp.cargo,
                           Number(resp.horas) || 0
                         );
@@ -1083,7 +1065,7 @@ export default function FormularioAcrPage() {
                                   }
                                 >
                                   <option value="">Seleccionar...</option>
-                                  {CARGOS.map((c) => (
+                                  {cargosDisponibles.map((c) => (
                                     <option key={c.cargo} value={c.cargo}>
                                       {c.cargo}
                                     </option>
@@ -1500,11 +1482,11 @@ export default function FormularioAcrPage() {
 
                     {/* Responsables del plan */}
                     {act.responsables.map((resp, rIdx) => {
-                      const costoEjec = calcCosto(
+                      const costoEjec = calcCostoActual(
                         resp.cargoEjecucion,
                         Number(resp.horasEjecucion) || 0
                       );
-                      const costoSeg = calcCosto(
+                      const costoSeg = calcCostoActual(
                         resp.cargoSeguimiento,
                         Number(resp.horasSeguimiento) || 0
                       );
@@ -1557,7 +1539,7 @@ export default function FormularioAcrPage() {
                                   }
                                 >
                                   <option value="">Seleccionar...</option>
-                                  {CARGOS.map((c) => (
+                                  {cargosDisponibles.map((c) => (
                                     <option key={c.cargo} value={c.cargo}>{c.cargo}</option>
                                   ))}
                                 </select>
@@ -1639,7 +1621,7 @@ export default function FormularioAcrPage() {
                                   }
                                 >
                                   <option value="">Seleccionar...</option>
-                                  {CARGOS.map((c) => (
+                                  {cargosDisponibles.map((c) => (
                                     <option key={c.cargo} value={c.cargo}>{c.cargo}</option>
                                   ))}
                                 </select>

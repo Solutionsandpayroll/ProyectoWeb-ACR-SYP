@@ -30,11 +30,12 @@ export async function POST(req: NextRequest) {
   }
 
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000';
-  const configuredInterval = Number(process.env.NOTIFICATION_INTERVAL_MINUTES ?? 21600); // 15 days default
+  const configuredInterval = Number(process.env.NOTIFICATION_INTERVAL_MINUTES ?? 1440); // 1 day default
   const notificationIntervalMinutes =
     Number.isFinite(configuredInterval) && configuredInterval > 0
       ? Math.floor(configuredInterval)
-      : 21600;
+      : 1440;
+  const forceSend = ['1', 'true', 'yes'].includes((req.nextUrl.searchParams.get('force') ?? '').toLowerCase());
 
   try {
     // ── Query ACRs that need a notification ────────────────────────────────
@@ -42,35 +43,54 @@ export async function POST(req: NextRequest) {
     //   1. Not closed (estado != 'Cerrada')
     //   2. Has at least one email configured
     //   3. Has never been notified OR last notification exceeded configured interval
-    const acrs = await sql`
-      SELECT
-        r.id,
-        r.consecutivo,
-        r.tipo_accion,
-        r.proceso,
-        r.cliente,
-        r.estado,
-        c.resp_ejecucion,
-        c.resp_ejecucion_email,
-        c.resp_seguimiento,
-        c.resp_seguimiento_email,
-        (
-          SELECT MAX(rp.fecha_fin)
-          FROM actividades_plan ap
-          JOIN responsables_plan rp ON rp.actividad_plan_id = ap.id
-          WHERE ap.acr_id = r.id AND rp.tipo = 'ejecucion'
-        ) AS cierre_estimado
-      FROM acr_registros r
-      LEFT JOIN control_acciones_seguimiento c ON c.acr_id = r.id
-      WHERE r.estado != 'Cerrada'
-        AND (
-          c.ultima_notificacion IS NULL
-          OR c.ultima_notificacion < NOW() - make_interval(mins => ${notificationIntervalMinutes})
-        )
-    `;
+    const acrs = forceSend
+      ? await sql`
+          SELECT
+            r.id,
+            r.consecutivo,
+            r.tipo_accion,
+            r.proceso,
+            r.cliente,
+            r.estado,
+            c.resp_ejecucion,
+            c.resp_ejecucion_email,
+            c.resp_seguimiento,
+            c.resp_seguimiento_email,
+            c.cierre_estimado
+          FROM acr_registros r
+          LEFT JOIN control_acciones_seguimiento c ON c.acr_id = r.id
+          WHERE r.estado != 'Cerrada'
+        `
+      : await sql`
+          SELECT
+            r.id,
+            r.consecutivo,
+            r.tipo_accion,
+            r.proceso,
+            r.cliente,
+            r.estado,
+            c.resp_ejecucion,
+            c.resp_ejecucion_email,
+            c.resp_seguimiento,
+            c.resp_seguimiento_email,
+            c.cierre_estimado
+          FROM acr_registros r
+          LEFT JOIN control_acciones_seguimiento c ON c.acr_id = r.id
+          WHERE r.estado != 'Cerrada'
+            AND (
+              c.ultima_notificacion IS NULL
+              OR c.ultima_notificacion < NOW() - make_interval(mins => ${notificationIntervalMinutes})
+            )
+        `;
 
     if (acrs.length === 0) {
-      return NextResponse.json({ message: 'No hay ACRs pendientes de notificación.', sent: 0 });
+      return NextResponse.json({
+        message: forceSend
+          ? 'No hay ACRs abiertos para notificar.'
+          : 'No hay ACRs pendientes de notificación.',
+        sent: 0,
+        force: forceSend,
+      });
     }
 
     const results: { acr_id: number; consecutivo: string; emails: string[]; errors: string[] }[] = [];
@@ -86,7 +106,7 @@ export async function POST(req: NextRequest) {
         : null;
 
       const acrUrl = `${appUrl}/dashboard/historial-acr/${acr.id}`;
-      const subject = `[ACR] Recordatorio — ${acr.tipo_accion} ${acr.consecutivo} sigue ${acr.estado}`;
+      const subject = `[ACR] Recordatorio — ACR ${acr.consecutivo} sigue ${acr.estado}`;
 
       const procesoResponsables = getResponsablesByProceso(acr.proceso ?? '');
       const procesoEmails = getResponsableEmailsByProceso(acr.proceso ?? '');
@@ -161,7 +181,7 @@ export async function POST(req: NextRequest) {
     const totalSent = results.reduce((n, r) => n + r.emails.length, 0);
     console.log(`[cron/notificaciones-acr] Enviados ${totalSent} emails en ${results.length} ACRs.`);
 
-    return NextResponse.json({ sent: totalSent, results });
+    return NextResponse.json({ sent: totalSent, results, force: forceSend, intervalMinutes: notificationIntervalMinutes });
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);
     console.error('[cron/notificaciones-acr] Error:', msg);

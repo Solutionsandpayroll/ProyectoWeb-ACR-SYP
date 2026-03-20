@@ -96,7 +96,7 @@ export default async function DashboardPage({
         subtitle="Bienvenido al Sistema de Gestión ACR"
       />
 
-      <main className="flex-1 p-8 space-y-8">
+      <main className="flex-1 p-4 sm:p-6 md:p-8 space-y-6 md:space-y-8">
         {/* Stats grid */}
         <section className="dash-enter" style={{ animationDelay: "0.05s" }}>
           <div className="flex items-center justify-between gap-3 flex-wrap mb-4">
@@ -150,7 +150,7 @@ export default async function DashboardPage({
 
         {/* Recent ACR table */}
         <section className="dash-enter" style={{ animationDelay: "0.3s" }}>
-          <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center justify-between gap-3 mb-4 flex-wrap">
             <h2 className="text-sm font-semibold text-slate-500 uppercase tracking-widest">
               ACR Recientes
             </h2>
@@ -162,7 +162,7 @@ export default async function DashboardPage({
             </Link>
           </div>
 
-          <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden dash-enter" style={{ animationDelay: "0.35s" }}>
+          <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-x-auto dash-enter" style={{ animationDelay: "0.35s" }}>
             <table className="w-full text-sm">
               <thead>
                 <tr className="bg-slate-50 border-b border-slate-200">

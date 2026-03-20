@@ -97,7 +97,7 @@ const CostTooltip = ({ active, payload, label }: { active?: boolean; payload?: A
 
 function ChartCard({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5 flex flex-col">
+    <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4 sm:p-5 flex flex-col">
       <h3 className="text-sm font-semibold text-slate-700 mb-4 text-center">{title}</h3>
       {children}
     </div>
@@ -258,9 +258,9 @@ export default function PanelAnalisisPage() {
     <div className="flex flex-col flex-1 min-h-0">
       <Header title="Panel de Análisis" subtitle={headerSubtitle} />
 
-      <main className="flex-1 p-6 space-y-5 overflow-auto">
+      <main className="flex-1 p-4 sm:p-6 space-y-5 overflow-auto">
         {/* ── Year / mode selector ─────────────────────────────────────── */}
-        <div className="bg-white rounded-xl border border-slate-200 shadow-sm px-6 py-4">
+        <div className="bg-white rounded-xl border border-slate-200 shadow-sm px-4 sm:px-6 py-4">
           <div className="flex flex-wrap items-center gap-2">
             <span className="text-xs text-slate-500 font-medium mr-1 shrink-0">Vista:</span>
 
@@ -334,14 +334,14 @@ export default function PanelAnalisisPage() {
 
         {/* ── Header summary strip (only in non-compare modes) ─────────── */}
         {viewMode !== "compare" && (
-          <div className="flex items-center justify-between bg-white rounded-xl border border-slate-200 shadow-sm px-6 py-4">
+          <div className="flex flex-wrap items-start sm:items-center justify-between gap-3 bg-white rounded-xl border border-slate-200 shadow-sm px-4 sm:px-6 py-4">
             <div>
               <p className="text-xs text-slate-400 uppercase tracking-widest font-medium">Tablero de Acciones Correctivas y de Mejora</p>
               <p className="text-2xl font-bold text-slate-800 mt-0.5">
                 {viewMode === "all" ? "Todos los años" : String(selectedYear)}
               </p>
             </div>
-            <div className="bg-slate-800 text-white rounded-xl px-6 py-3 text-right min-w-50">
+            <div className="bg-slate-800 text-white rounded-xl px-5 sm:px-6 py-3 text-right min-w-full sm:min-w-50">
               <p className="text-xl font-bold leading-tight">
                 {loading || !data
                   ? "—"

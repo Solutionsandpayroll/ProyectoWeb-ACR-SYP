@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { sql } from '@/lib/db';
+import { getRequestSession, isAdminSession } from '@/lib/auth';
 
 const toSafeNumber = (value: unknown): number => {
   if (typeof value === 'number') return Number.isFinite(value) ? value : 0;
@@ -117,6 +118,11 @@ export async function PUT(
   if (isNaN(id)) return NextResponse.json({ error: 'ID inválido' }, { status: 400 });
 
   try {
+    const session = getRequestSession(request);
+    if (!session) {
+      return NextResponse.json({ error: 'No autenticado' }, { status: 401 });
+    }
+
     const body = await request.json();
     const {
       fuente,
@@ -139,7 +145,24 @@ export async function PUT(
       eficaciaNoConformidades,
       eficaciaNuevosRiesgos,
       eficaciaCambiosSgi,
+      fechaCierre,
+      responsableCierre,
     } = body;
+
+    const [currentRegistro] = await sql`
+      SELECT estado, fecha_cierre, responsable_cierre
+      FROM acr_registros
+      WHERE id = ${id}
+    `;
+
+    if (!currentRegistro) {
+      return NextResponse.json({ error: 'Registro no encontrado' }, { status: 404 });
+    }
+
+    const isAdmin = isAdminSession(session);
+    const nextEstado = isAdmin ? (estado ?? currentRegistro.estado ?? 'Abierta') : currentRegistro.estado;
+    const nextFechaCierre = isAdmin ? (fechaCierre ?? null) : (currentRegistro.fecha_cierre ?? null);
+    const nextResponsableCierre = isAdmin ? (responsableCierre ?? null) : (currentRegistro.responsable_cierre ?? null);
 
     // ── Update main record ────────────────────────────────────────────────
     await sql`
@@ -154,11 +177,13 @@ export async function PUT(
         tratamiento      = ${tratamiento   ?? null},
         evaluacion_riesgo = ${evaluacionRiesgo ?? null},
         descripcion      = ${descripcion   ?? null},
-        estado           = ${estado        ?? 'Abierta'},
+        estado           = ${nextEstado},
         eficacia_accion_adecuada  = ${eficaciaAccionAdecuada  ?? null},
         eficacia_no_conformidades = ${eficaciaNoConformidades ?? null},
         eficacia_nuevos_riesgos   = ${eficaciaNuevosRiesgos   ?? null},
-        eficacia_cambios_sgi      = ${eficaciaCambiosSgi      ?? null}
+        eficacia_cambios_sgi      = ${eficaciaCambiosSgi      ?? null},
+        fecha_cierre              = ${nextFechaCierre},
+        responsable_cierre        = ${nextResponsableCierre}
       WHERE id = ${id}
     `;
 
