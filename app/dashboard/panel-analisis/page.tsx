@@ -266,7 +266,7 @@ export default function PanelAnalisisPage() {
 
             <button
               onClick={() => setViewMode("all")}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all duration-150 cursor-pointer hover:-translate-y-0.5 hover:shadow-md active:translate-y-0 active:shadow-sm ${
                 viewMode === "all"
                   ? "bg-slate-800 text-white shadow-sm"
                   : "bg-slate-100 text-slate-600 hover:bg-slate-200"
@@ -277,7 +277,7 @@ export default function PanelAnalisisPage() {
 
             <button
               onClick={() => setViewMode("compare")}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all duration-150 cursor-pointer hover:-translate-y-0.5 hover:shadow-md active:translate-y-0 active:shadow-sm ${
                 viewMode === "compare"
                   ? "bg-slate-800 text-white shadow-sm"
                   : "bg-slate-100 text-slate-600 hover:bg-slate-200"
@@ -292,7 +292,7 @@ export default function PanelAnalisisPage() {
               <button
                 key={y}
                 onClick={() => { setViewMode("single"); setSelectedYear(y); }}
-                className="px-3 py-1.5 rounded-lg text-xs font-semibold transition"
+                className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-all duration-150 cursor-pointer hover:-translate-y-0.5 hover:shadow-md active:translate-y-0 active:shadow-sm"
                 style={
                   viewMode === "single" && selectedYear === y
                     ? { backgroundColor: YEAR_COLORS[i % YEAR_COLORS.length], color: "white" }
@@ -309,14 +309,14 @@ export default function PanelAnalisisPage() {
               <button
                 onClick={() => handleClasificarSubcategorias(false)}
                 disabled={classifying}
-                className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-[#105789] text-white hover:bg-[#0f4e7a] disabled:opacity-50 disabled:cursor-not-allowed transition"
+                className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-[#105789] text-white hover:bg-[#0f4e7a] disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-150 cursor-pointer hover:-translate-y-0.5 hover:shadow-md active:translate-y-0 active:shadow-sm"
               >
                 {classifying ? "Clasificando..." : "Dividir procesos en subcategorias (IA)"}
               </button>
               <button
                 onClick={() => handleClasificarSubcategorias(true)}
                 disabled={classifying}
-                className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-white text-slate-700 border border-slate-300 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition"
+                className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-white text-slate-700 border border-slate-300 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-150 cursor-pointer hover:-translate-y-0.5 hover:shadow-md active:translate-y-0 active:shadow-sm"
                 title="Fuerza reclasificación completa del año"
               >
                 Reclasificar todo el año
