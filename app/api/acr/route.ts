@@ -24,7 +24,6 @@ export async function GET() {
         r.cliente,
         r.fecha_apertura,
         r.fecha_registro,
-        r.fecha_limite,
         r.tipo_accion,
         r.evaluacion_riesgo,
         r.descripcion,
@@ -54,7 +53,6 @@ export async function POST(request: NextRequest) {
       cliente,
       fechaApertura,
       fechaRegistro,
-      fechaLimite,
       tipoAccion,
       tratamiento,
       evaluacionRiesgo,
@@ -82,11 +80,11 @@ export async function POST(request: NextRequest) {
     const [registro] = await sql`
       INSERT INTO acr_registros (
         consecutivo, fuente, proceso, cliente,
-        fecha_apertura, fecha_registro, fecha_limite, tipo_accion,
+        fecha_apertura, fecha_registro, tipo_accion,
         tratamiento, evaluacion_riesgo, descripcion
       ) VALUES (
         ${consecutivo}, ${fuente}, ${proceso}, ${cliente ?? null},
-        ${fechaApertura}, ${fechaRegistro}, ${fechaLimite ?? null}, ${tipoAccion},
+        ${fechaApertura}, ${fechaRegistro}, ${tipoAccion},
         ${tratamiento ?? null}, ${evaluacionRiesgo ?? null}, ${descripcion ?? null}
       )
       RETURNING id

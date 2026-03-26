@@ -16,7 +16,6 @@ interface ControlRow {
   tipo_accion: string;
   fecha_apertura: string | null;
   fecha_registro: string | null;
-  fecha_limite: string | null;
   proceso: string;
   fuente: string;
   cliente: string;

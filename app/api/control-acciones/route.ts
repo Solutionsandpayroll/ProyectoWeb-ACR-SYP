@@ -32,7 +32,6 @@ export async function GET(req: NextRequest) {
         r.tipo_accion,
         r.fecha_apertura,
         r.fecha_registro,
-        r.fecha_limite,
         r.proceso,
         r.fuente,
         r.cliente,

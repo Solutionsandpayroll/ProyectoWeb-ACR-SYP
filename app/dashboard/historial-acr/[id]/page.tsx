@@ -94,7 +94,7 @@ interface ActPlan {
 interface ApiData {
   registro: {
     id: number; consecutivo: string; fuente: string; proceso: string;
-    cliente: string | null; fecha_apertura: string; fecha_registro: string | null; fecha_limite: string | null;
+    cliente: string | null; fecha_apertura: string; fecha_registro: string | null;
     tipo_accion: string; tratamiento: string | null; evaluacion_riesgo: string | null;
     descripcion: string | null; estado: string; created_at: string;
     eficacia_accion_adecuada:  string | null;
@@ -135,7 +135,7 @@ type PlanActEdit = { descripcion: string; causasAsociadas: string[]; responsable
 
 type EditData = {
   fuente: string; proceso: string; cliente: string;
-  fechaApertura: string; fechaRegistro: string; fechaLimite: string;
+  fechaApertura: string; fechaRegistro: string;
   tipoAccion: string; tratamiento: string; evaluacionRiesgo: string;
   descripcion: string; estado: string;
   actividadesCorreccion: CorrActEdit[];
@@ -203,7 +203,6 @@ function initEditData(d: ApiData): EditData {
     cliente:         reg.cliente      ?? "",
     fechaApertura:   toInputDate(reg.fecha_apertura),
     fechaRegistro:   toInputDate(reg.fecha_registro),
-    fechaLimite:     toInputDate(reg.fecha_limite),
     tipoAccion:      reg.tipo_accion  ?? "",
     tratamiento:     reg.tratamiento  ?? "",
     evaluacionRiesgo: reg.evaluacion_riesgo ?? "",
@@ -371,6 +370,10 @@ export default function AcrDetailPage() {
   const [translating,  setTranslating]  = useState(false);
   const [translateError, setTranslateError] = useState<string | null>(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showExitConfirmModal, setShowExitConfirmModal] = useState(false);
+  const [isExitModalMounted, setIsExitModalMounted] = useState(false);
+  const [isExitModalVisible, setIsExitModalVisible] = useState(false);
+  const [pendingExitAction, setPendingExitAction] = useState<"back" | "cancel" | null>(null);
   const [deletingAcr, setDeletingAcr] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [deleteReason, setDeleteReason] = useState("");
@@ -445,12 +448,89 @@ export default function AcrDetailPage() {
     };
   }, []);
 
+  useEffect(() => {
+    let timeoutId: ReturnType<typeof setTimeout> | undefined;
+
+    if (showExitConfirmModal) {
+      setIsExitModalMounted(true);
+      requestAnimationFrame(() => setIsExitModalVisible(true));
+    } else if (isExitModalMounted) {
+      setIsExitModalVisible(false);
+      timeoutId = setTimeout(() => {
+        setIsExitModalMounted(false);
+      }, 200);
+    }
+
+    return () => {
+      if (timeoutId) clearTimeout(timeoutId);
+    };
+  }, [showExitConfirmModal, isExitModalMounted]);
+
   const handleEdit = () => {
     if (!data) return;
     setEditData(initEditData(data));
     setSaveError(null); setSaveOk(false); setIsEditing(true); setEstadoError(null);
   };
-  const handleCancel = () => { setIsEditing(false); setSaveError(null); setEstadoError(null); };
+
+  const hasUnsavedChanges = useMemo(() => {
+    if (!isEditing || !data || !editData) return false;
+    const initial = JSON.stringify(initEditData(data));
+    const current = JSON.stringify(editData);
+    return initial !== current;
+  }, [isEditing, data, editData]);
+
+  const closeEditMode = () => {
+    setIsEditing(false);
+    setSaveError(null);
+    setEstadoError(null);
+    setShowExitConfirmModal(false);
+    setPendingExitAction(null);
+  };
+
+  const requestExit = (action: "back" | "cancel") => {
+    if (isEditing && hasUnsavedChanges) {
+      setPendingExitAction(action);
+      setShowExitConfirmModal(true);
+      return;
+    }
+
+    if (action === "cancel") {
+      closeEditMode();
+      return;
+    }
+
+    router.back();
+  };
+
+  const handleCancel = () => {
+    requestExit("cancel");
+  };
+
+  const handleBack = () => {
+    requestExit("back");
+  };
+
+  const handleExitWithoutSaving = () => {
+    if (pendingExitAction === "cancel") {
+      closeEditMode();
+      return;
+    }
+
+    setShowExitConfirmModal(false);
+    setPendingExitAction(null);
+    router.back();
+  };
+
+  const handleSaveAndExit = async () => {
+    await handleSave();
+    if (!saveError) {
+      if (pendingExitAction === "back") {
+        router.back();
+      }
+      setShowExitConfirmModal(false);
+      setPendingExitAction(null);
+    }
+  };
 
   const handleDelete = async () => {
     if (!data) return;
@@ -662,7 +742,6 @@ export default function AcrDetailPage() {
         cliente:          editData.cliente || null,
         fechaApertura:    editData.fechaApertura,
         fechaRegistro:    editData.fechaRegistro || null,
-        fechaLimite:      editData.fechaLimite || null,
         tipoAccion:       editData.tipoAccion,
         tratamiento:      editData.tratamiento || null,
         evaluacionRiesgo: editData.evaluacionRiesgo || null,
@@ -806,7 +885,7 @@ export default function AcrDetailPage() {
       <Header title={fx("Detalle ACR", "ACR Detail")} subtitle={fx("Error", "Error")} />
       <div className="flex-1 flex items-center justify-center flex-col gap-3">
         <p className="text-red-600 font-medium">{fetchError ?? fx("Registro no encontrado", "Record not found")}</p>
-        <button onClick={() => router.back()} className="text-sm text-[#105789] hover:underline cursor-pointer">← {fx("Volver al historial", "Back to history")}</button>
+        <button onClick={handleBack} className="text-sm text-[#105789] hover:underline cursor-pointer">← {fx("Volver al historial", "Back to history")}</button>
       </div>
     </div>
   );
@@ -833,7 +912,7 @@ export default function AcrDetailPage() {
         {/* ── Toolbar ─────────────────────────────────────────────────────── */}
         <div className="flex items-center justify-between mb-5 flex-wrap gap-3">
           <button
-            onClick={() => router.back()}
+            onClick={handleBack}
             className="no-print flex items-center gap-1.5 text-sm text-slate-500 hover:text-[#105789] transition-colors font-medium cursor-pointer"
           >
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -1035,10 +1114,6 @@ export default function AcrDetailPage() {
                   <input type="date" value={ed.fechaRegistro} className={inputCls} readOnly disabled />
                 </div>
                 <div>
-                  <label className={labelCls}>Fecha límite</label>
-                  <input type="date" value={ed.fechaLimite} onChange={(e) => setED({ fechaLimite: e.target.value })} className={inputCls} />
-                </div>
-                <div>
                   <label className={labelCls}>Cliente</label>
                   <input value={ed.cliente} onChange={(e) => setED({ cliente: e.target.value })} placeholder="—" className={inputCls} />
                 </div>
@@ -1184,7 +1259,7 @@ export default function AcrDetailPage() {
                           <EvidenciaUpload
                             value={act.evidencia}
                             onChange={(url) => updCorrAct(ai, { evidencia: url })}
-                            maxFiles={3}
+                            maxFiles={5}
                           />
                         </div>
                         <div>
@@ -1445,7 +1520,7 @@ export default function AcrDetailPage() {
                           <EvidenciaUpload
                             value={act.evidencia}
                             onChange={(url) => updPlanAct(ai, { evidencia: url })}
-                            maxFiles={3}
+                            maxFiles={5}
                           />
                         </div>
                         <div>
@@ -1819,6 +1894,74 @@ export default function AcrDetailPage() {
                   )}
                   {deletingAcr ? "Eliminando..." : "Eliminar"}
                 </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {isExitModalMounted && (
+          <div className={`fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 transition-opacity duration-200 ${isExitModalVisible ? "opacity-100" : "opacity-0"}`}>
+            <div className={`bg-white rounded-2xl shadow-2xl max-w-4xl w-[95vw] transition-all duration-200 ${isExitModalVisible ? "opacity-100 scale-100 translate-y-0" : "opacity-0 scale-95 translate-y-1"}`}>
+              <div className="px-8 py-5 border-b border-slate-200 bg-linear-to-r from-slate-50 to-white rounded-t-2xl">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center">
+                    <svg className="w-5 h-5 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                    </svg>
+                  </div>
+                  <h2 className="text-xl font-semibold text-slate-800">Cambios sin guardar</h2>
+                </div>
+              </div>
+
+              <div className="px-8 py-6">
+                <p className="text-slate-600 text-base leading-relaxed">
+                  Tiene cambios pendientes que no han sido guardados. Por favor, seleccione una opción para continuar.
+                </p>
+
+                <div className="mt-4 p-3 bg-slate-50 rounded-lg border border-slate-200">
+                  <div className="flex items-start gap-2">
+                    <svg className="w-4 h-4 text-slate-500 mt-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <p className="text-xs text-slate-600">
+                      Los cambios no guardados se perderán si sale sin guardar
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="px-8 py-5 border-t border-slate-200 bg-slate-50/50 rounded-b-2xl">
+                <div className="flex gap-3 justify-end flex-nowrap">
+                  <button
+                    onClick={() => { setShowExitConfirmModal(false); setPendingExitAction(null); }}
+                    disabled={saving}
+                    className="px-5 py-2.5 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 hover:border-slate-400 transition-all duration-200 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-slate-400 focus:ring-offset-2"
+                  >
+                    Seguir editando
+                  </button>
+
+                  <button
+                    onClick={handleExitWithoutSaving}
+                    disabled={saving}
+                    className="px-5 py-2.5 text-sm font-medium text-red-700 bg-red-50 border border-red-200 rounded-lg hover:bg-red-100 hover:border-red-300 transition-all duration-200 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-red-400 focus:ring-offset-2"
+                  >
+                    Salir sin guardar
+                  </button>
+
+                  <button
+                    onClick={handleSaveAndExit}
+                    disabled={saving}
+                    className="px-5 py-2.5 text-sm font-medium text-white bg-linear-to-r from-[#105789] to-[#0a3f60] rounded-lg hover:from-[#0a3f60] hover:to-[#083450] transition-all duration-200 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 shadow-sm hover:shadow-md focus:outline-none focus:ring-2 focus:ring-[#105789] focus:ring-offset-2"
+                  >
+                    {saving && (
+                      <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin inline-block" />
+                    )}
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                    Guardar y salir
+                  </button>
+                </div>
               </div>
             </div>
           </div>

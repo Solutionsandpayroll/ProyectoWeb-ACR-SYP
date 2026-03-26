@@ -9,7 +9,6 @@ CREATE TABLE IF NOT EXISTS acr_registros (
   proceso VARCHAR(100) NOT NULL,
   cliente VARCHAR(200),
   fecha_apertura DATE NOT NULL,
-  fecha_limite DATE,
   tipo_accion VARCHAR(100) NOT NULL,
   tratamiento TEXT,
   evaluacion_riesgo TEXT,

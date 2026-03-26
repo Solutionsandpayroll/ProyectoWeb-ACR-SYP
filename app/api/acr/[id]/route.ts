@@ -130,7 +130,6 @@ export async function PUT(
       cliente,
       fechaApertura,
       fechaRegistro,
-      fechaLimite,
       tipoAccion,
       tratamiento,
       evaluacionRiesgo,
@@ -172,7 +171,6 @@ export async function PUT(
         cliente          = ${cliente       ?? null},
         fecha_apertura   = ${fechaApertura ?? null},
         fecha_registro   = ${fechaRegistro ?? null},
-        fecha_limite     = ${fechaLimite   ?? null},
         tipo_accion      = ${tipoAccion    ?? null},
         tratamiento      = ${tratamiento   ?? null},
         evaluacion_riesgo = ${evaluacionRiesgo ?? null},
@@ -347,11 +345,11 @@ export async function DELETE(
     await sql`
       INSERT INTO acr_eliminadas
         (acr_original_id, consecutivo, fuente, proceso, cliente, fecha_apertura, 
-         fecha_limite, tipo_accion, tratamiento, evaluacion_riesgo, descripcion, 
+         tipo_accion, tratamiento, evaluacion_riesgo, descripcion, 
          estado, datos_completos, razon_eliminacion, created_at, updated_at)
       VALUES
         (${id}, ${registro.consecutivo}, ${registro.fuente}, ${registro.proceso},
-         ${registro.cliente}, ${registro.fecha_apertura}, ${registro.fecha_limite},
+         ${registro.cliente}, ${registro.fecha_apertura},
          ${registro.tipo_accion}, ${registro.tratamiento}, ${registro.evaluacion_riesgo},
          ${registro.descripcion}, ${registro.estado}, 
          ${JSON.stringify(registro)},
