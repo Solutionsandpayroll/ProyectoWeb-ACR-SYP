@@ -44,6 +44,7 @@ const PROCESOS = [
   "Gestión Administrativa y Financiera",
   "Gestión de Talento Humano",
   "Employer of Record",
+  "Employer of Record Sucursales",
   "Gestión Integral",
   "Outsourcing de tesorería",
 ];
@@ -165,11 +166,13 @@ const newPlanResp = (): PlanRespEdit => ({
 const newPlanAct = (): PlanActEdit => ({ descripcion: "", causasAsociadas: [], responsables: [newPlanResp()], evidencia: "", observaciones: "" });
 
 // â”€â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-const fmtCOP = (n: number) =>
-  n > 0 ? n.toLocaleString("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 }) : "â€”";
+const fmtCOP = (n: number) => {
+  const safe = Number.isFinite(n) ? n : 0;
+  return safe.toLocaleString("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 });
+};
 
 const fmtDate = (iso: string | null | undefined) =>
-  iso ? new Date(iso).toLocaleDateString("es-CO", { day: "2-digit", month: "short", year: "numeric" }) : "â€”";
+  iso ? new Date(iso).toLocaleDateString("es-CO", { day: "2-digit", month: "short", year: "numeric" }) : "—";
 
 const toInputDate = (iso: string | null | undefined) => (iso ? iso.slice(0, 10) : "");
 
@@ -193,6 +196,14 @@ const resolveEvidenceHref = (evidencia: string): string => {
     return `/api/evidencias/download?url=${encodeURIComponent(evidencia)}`;
   }
   return evidencia;
+};
+
+const getConsecutivoNumber = (value: string | null | undefined): number | null => {
+  if (!value) return null;
+  const match = value.match(/(\d+)(?!.*\d)/);
+  if (!match) return null;
+  const parsed = Number(match[1]);
+  return Number.isFinite(parsed) ? parsed : null;
 };
 
 function initEditData(d: ApiData): EditData {
@@ -715,6 +726,15 @@ export default function AcrDetailPage() {
     });
     return out;
   }, [editData]);
+
+  const showLegacyCausasSelector = useMemo(() => {
+    const consecutiveNumber = getConsecutivoNumber(data?.registro?.consecutivo);
+    const hasExistingLinks =
+      !!editData?.actividadesPlan.some((act) => act.causasAsociadas.length > 0) ||
+      !!data?.actividades_plan.some((act) => Array.isArray(act.causas_asociadas) && act.causas_asociadas.length > 0);
+
+    return hasExistingLinks || (consecutiveNumber !== null && consecutiveNumber <= 12);
+  }, [data, editData]);
 
   // â”€â”€ Save â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const handleSave = async () => {
@@ -1432,7 +1452,7 @@ export default function AcrDetailPage() {
                         <label className={labelCls}>Actividad a desarrollar</label>
                         <textarea rows={2} value={act.descripcion} onChange={(e) => updPlanAct(ai, { descripcion: e.target.value })} placeholder="Describe la actividad..." className={inputCls} />
                       </div>
-                      {allCausas.length > 0 && (
+                      {showLegacyCausasSelector && allCausas.length > 0 && (
                         <div>
                           <label className={labelCls}>Causas asociadas</label>
                           <div className="grid grid-cols-2 gap-1.5 mt-1">

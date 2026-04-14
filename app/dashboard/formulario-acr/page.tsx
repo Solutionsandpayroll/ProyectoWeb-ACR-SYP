@@ -26,6 +26,14 @@ const fmtCurrency = (n: number) =>
     maximumFractionDigits: 0,
   });
 
+const getConsecutivoNumber = (value: string | null | undefined): number | null => {
+  if (!value) return null;
+  const match = value.match(/(\d+)(?!.*\d)/);
+  if (!match) return null;
+  const parsed = Number(match[1]);
+  return Number.isFinite(parsed) ? parsed : null;
+};
+
 // ─── Option Lists ───────────────────────────────────────────────────────────────
 const FUENTES = [
   "Hallazgos (no conformidades u oportunidades de mejora) encontrados en las auditorías internas o externas de calidad y SST",
@@ -265,6 +273,11 @@ export default function FormularioAcrPage() {
 
   const calcCostoActual = (cargo: string, horas: number) =>
     calcCosto(cargo, horas, info.fechaRegistro);
+
+  const showLegacyCausasSelector = useMemo(() => {
+    const consecutiveNumber = getConsecutivoNumber(info.consecutivo);
+    return consecutiveNumber !== null && consecutiveNumber <= 12;
+  }, [info.consecutivo]);
 
   // ── Section 2 ──
   const [correccionActs, setCorreccionActs] = useState<ActividadCorreccion[]>([
@@ -1430,33 +1443,35 @@ export default function FormularioAcrPage() {
                           }
                         />
                       </div>
-                      <div>
-                        <label className={labelCls}>Causas asociadas</label>
-                        {allCausas.length === 0 ? (
-                          <p className="text-xs text-slate-400 italic">
-                            Define causas en la sección 3 para asociarlas aquí.
-                          </p>
-                        ) : (
-                          <div className="space-y-1.5 max-h-32 overflow-y-auto border border-slate-200 rounded-lg p-2.5 bg-slate-50">
-                            {allCausas.map((causa) => (
-                              <label
-                                key={causa.value}
-                                className="flex items-start gap-2 cursor-pointer"
-                              >
-                                <input
-                                  type="checkbox"
-                                  checked={act.causasAsociadas.includes(causa.value)}
-                                  onChange={() => toggleCausa(aIdx, causa.value)}
-                                  className="mt-0.5 accent-blue-600"
-                                />
-                                <span className="text-xs text-slate-700">
-                                  {causa.label}
-                                </span>
-                              </label>
-                            ))}
-                          </div>
-                        )}
-                      </div>
+                      {showLegacyCausasSelector && (
+                        <div>
+                          <label className={labelCls}>Causas asociadas</label>
+                          {allCausas.length === 0 ? (
+                            <p className="text-xs text-slate-400 italic">
+                              Define causas en la sección 3 para asociarlas aquí.
+                            </p>
+                          ) : (
+                            <div className="space-y-1.5 max-h-32 overflow-y-auto border border-slate-200 rounded-lg p-2.5 bg-slate-50">
+                              {allCausas.map((causa) => (
+                                <label
+                                  key={causa.value}
+                                  className="flex items-start gap-2 cursor-pointer"
+                                >
+                                  <input
+                                    type="checkbox"
+                                    checked={act.causasAsociadas.includes(causa.value)}
+                                    onChange={() => toggleCausa(aIdx, causa.value)}
+                                    className="mt-0.5 accent-blue-600"
+                                  />
+                                  <span className="text-xs text-slate-700">
+                                    {causa.label}
+                                  </span>
+                                </label>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
 
                     {/* Evidencia y Observaciones */}
@@ -1828,13 +1843,6 @@ export default function FormularioAcrPage() {
             <div className="bg-white rounded-2xl border border-slate-200 shadow-sm px-7 py-5 flex items-center justify-end gap-3 sticky bottom-4">
               <button
                 type="button"
-                onClick={handleRellenarPrueba}
-                className="cursor-pointer px-5 py-2.5 rounded-lg text-sm font-medium text-amber-700 hover:bg-amber-50 border border-amber-200 transition"
-              >
-                🧪 Rellenar con datos de prueba
-              </button>
-              <button
-                type="button"
                 onClick={() => {
                   if (confirm("¿Deseas limpiar todo el formulario? Se perderán los datos ingresados.")) {
                     window.location.reload();
@@ -1893,9 +1901,20 @@ export default function FormularioAcrPage() {
       {modalState === 'success' && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
           <div
-            className="bg-white rounded-2xl shadow-2xl px-10 py-10 flex flex-col items-center gap-5 min-w-[320px] max-w-sm w-full"
+            className="relative bg-white rounded-2xl shadow-2xl px-10 py-10 flex flex-col items-center gap-5 min-w-[320px] max-w-sm w-full"
             style={{ animation: 'modalIn 0.3s cubic-bezier(0.34,1.56,0.64,1) both' }}
           >
+            <button
+              type="button"
+              onClick={() => { setModalState('idle'); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+              aria-label="Cerrar"
+              className="absolute top-4 right-4 w-9 h-9 rounded-full border border-slate-200 bg-white text-slate-500 hover:text-slate-700 hover:bg-slate-50 transition flex items-center justify-center cursor-pointer"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+
             {/* Checkmark circle */}
             <div className="w-20 h-20 rounded-full bg-emerald-100 flex items-center justify-center">
               <svg className="w-10 h-10 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -1914,8 +1933,9 @@ export default function FormularioAcrPage() {
 
             <div className="flex flex-col gap-2 w-full pt-1">
               <button
+                type="button"
                 onClick={() => { setModalState('idle'); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
-                className="w-full py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold transition"
+                className="w-full py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold transition cursor-pointer"
               >
                 Crear otro ACR
               </button>
