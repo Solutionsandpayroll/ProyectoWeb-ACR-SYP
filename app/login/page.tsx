@@ -20,7 +20,7 @@ export default function LoginPage() {
         const res = await fetch("/api/auth/session", { cache: "no-store" });
         const json = await res.json();
         if (!cancelled && json.session) {
-          router.replace("/dashboard");
+          router.replace("/dashboard/inicio");
           router.refresh();
         }
       } catch {
@@ -58,7 +58,7 @@ export default function LoginPage() {
       if (!res.ok) throw new Error(json.error ?? "No fue posible iniciar sesión.");
 
       await waitRemaining();
-      router.replace("/dashboard");
+      router.replace("/dashboard/inicio");
       router.refresh();
     } catch (err) {
       await waitRemaining();

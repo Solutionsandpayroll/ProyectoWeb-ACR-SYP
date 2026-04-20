@@ -26,23 +26,46 @@ function UploadIcon() {
   );
 }
 
-const parseValue = (value: string): string[] => {
-  if (!value) return [];
-  try {
-    const parsed = JSON.parse(value) as unknown;
-    if (Array.isArray(parsed)) {
-      return parsed.filter((v): v is string => typeof v === "string" && v.trim().length > 0);
-    }
-  } catch {
-    // Legacy format: single string URL/text
-  }
-  return value.trim() ? [value] : [];
+/** Extracts a readable name from a stored URL when original name is unavailable */
+const fallbackDisplayName = (fileUrl: string): string => {
+  const raw = decodeURIComponent(fileUrl.split("/").pop() ?? fileUrl);
+  const extMatch = raw.match(/(\.[^.]+)$/);
+  const ext = extMatch?.[1] ?? "";
+  let base = raw.slice(0, raw.length - ext.length);
+  base = base.replace(/-[A-Za-z0-9]{15,}$/, ""); // strip Vercel random suffix
+  base = base.replace(/^\d{10,14}_/, "");          // strip timestamp prefix
+  base = base.replace(/_+/g, " ").trim();           // underscores → spaces
+  return (base + ext) || raw;
 };
 
-const serializeValue = (files: string[]): string => {
-  if (files.length === 0) return "";
-  if (files.length === 1) return files[0];
-  return JSON.stringify(files);
+type FileEntry = { url: string; displayName: string };
+
+const parseEntries = (value: string): FileEntry[] => {
+  if (!value) return [];
+  let items: unknown[];
+  try {
+    const parsed = JSON.parse(value);
+    items = Array.isArray(parsed) ? parsed : [value];
+  } catch {
+    items = [value];
+  }
+  return items.flatMap((item): FileEntry[] => {
+    if (typeof item === "string" && item.trim()) {
+      return [{ url: item, displayName: fallbackDisplayName(item) }];
+    }
+    if (typeof item === "object" && item !== null && "u" in item) {
+      const it = item as { u?: unknown; n?: unknown };
+      if (typeof it.u === "string" && it.u.trim()) {
+        return [{ url: it.u, displayName: (typeof it.n === "string" && it.n.trim()) ? it.n : fallbackDisplayName(it.u) }];
+      }
+    }
+    return [];
+  });
+};
+
+const serializeEntries = (entries: FileEntry[]): string => {
+  if (entries.length === 0) return "";
+  return JSON.stringify(entries.map(e => ({ u: e.url, n: e.displayName })));
 };
 
 const isAbsoluteUrl = (value: string) => /^https?:\/\//i.test(value);
@@ -58,8 +81,8 @@ export default function EvidenciaUpload({ value, onChange, maxFiles = 1 }: Props
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-  const files = parseValue(value);
-  const canAddMore = files.length < maxFiles;
+  const entries = parseEntries(value);
+  const canAddMore = entries.length < maxFiles;
 
   async function handleFile(file: File) {
     if (!canAddMore) {
@@ -72,10 +95,12 @@ export default function EvidenciaUpload({ value, onChange, maxFiles = 1 }: Props
       const fd = new FormData();
       fd.append("file", file);
       const res = await fetch("/api/upload", { method: "POST", body: fd });
-      const json = await res.json();
+      const json = await res.json() as { url?: string; name?: string; error?: string };
       if (!res.ok) throw new Error(json.error ?? "Error al subir el archivo");
-      const next = [...files, json.url].slice(0, maxFiles);
-      onChange(serializeValue(next));
+      const url = json.url ?? "";
+      const displayName = json.name?.trim() ? json.name : fallbackDisplayName(url);
+      const next = [...entries, { url, displayName }].slice(0, maxFiles);
+      onChange(serializeEntries(next));
     } catch (e) {
       setError(e instanceof Error ? e.message : "Error al subir el archivo");
     } finally {
@@ -85,34 +110,33 @@ export default function EvidenciaUpload({ value, onChange, maxFiles = 1 }: Props
   }
 
   function handleRemove(index: number) {
-    const next = files.filter((_, i) => i !== index);
-    onChange(serializeValue(next));
+    const next = entries.filter((_, i) => i !== index);
+    onChange(serializeEntries(next));
     if (inputRef.current) inputRef.current.value = "";
   }
 
   return (
     <div className="space-y-1.5">
-      {files.length > 0 && (
+      {entries.length > 0 && (
         <div className="space-y-1.5">
-          {files.map((fileUrl, i) => {
-            const displayName = decodeURIComponent(fileUrl.split("/").pop() ?? fileUrl);
-            const isUploadedFile = fileUrl.startsWith("/uploads/") || isAbsoluteUrl(fileUrl);
+          {entries.map((entry, i) => {
+            const isUploadedFile = entry.url.startsWith("/uploads/") || isAbsoluteUrl(entry.url);
             return (
-              <div key={`${fileUrl}-${i}`} className="flex items-center gap-2 px-3 py-2 rounded-lg border border-emerald-300 bg-emerald-50">
+              <div key={`${entry.url}-${i}`} className="flex items-center gap-2 px-3 py-2 rounded-lg border border-emerald-300 bg-emerald-50">
                 <FileIcon />
                 {isUploadedFile ? (
                   <a
-                    href={resolveEvidenceHref(fileUrl)}
+                    href={resolveEvidenceHref(entry.url)}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-sm text-emerald-700 font-medium truncate flex-1 hover:underline"
-                    title={displayName}
+                    title={entry.displayName}
                   >
-                    {displayName}
+                    {entry.displayName}
                   </a>
                 ) : (
-                  <span className="text-sm text-slate-700 truncate flex-1" title={displayName}>
-                    {displayName}
+                  <span className="text-sm text-slate-700 truncate flex-1" title={entry.displayName}>
+                    {entry.displayName}
                   </span>
                 )}
                 <button
@@ -145,7 +169,7 @@ export default function EvidenciaUpload({ value, onChange, maxFiles = 1 }: Props
           {loading
             ? "Subiendo..."
             : canAddMore
-              ? `Adjuntar archivo (${files.length}/${maxFiles})`
+              ? `Adjuntar archivo (${entries.length}/${maxFiles})`
               : `Límite alcanzado (${maxFiles}/${maxFiles})`}
         </span>
         <input

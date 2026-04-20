@@ -181,12 +181,43 @@ const parseEvidencias = (value: string | null | undefined): string[] => {
   try {
     const parsed = JSON.parse(value) as unknown;
     if (Array.isArray(parsed)) {
-      return parsed.filter((v): v is string => typeof v === "string" && v.trim().length > 0);
+      return parsed.flatMap((v): string[] => {
+        if (typeof v === "string" && v.trim()) return [v];
+        if (typeof v === "object" && v !== null && "u" in v) {
+          const u = (v as { u?: unknown }).u;
+          if (typeof u === "string" && u.trim()) return [u];
+        }
+        return [];
+      });
     }
   } catch {
     // Legacy format (single string)
   }
   return value.trim() ? [value] : [];
+};
+
+const getEvidenciaName = (url: string, rawValue: string | null | undefined): string => {
+  if (rawValue) {
+    try {
+      const parsed = JSON.parse(rawValue) as unknown;
+      if (Array.isArray(parsed)) {
+        for (const item of parsed) {
+          if (typeof item === "object" && item !== null && "u" in item && (item as { u: string }).u === url) {
+            const n = (item as { u: string; n?: string }).n;
+            if (n?.trim()) return n;
+          }
+        }
+      }
+    } catch {}
+  }
+  const raw = decodeURIComponent(url.split("/").pop() ?? url);
+  const extMatch = raw.match(/(\.[^.]+)$/);
+  const ext = extMatch?.[1] ?? "";
+  let base = raw.slice(0, raw.length - ext.length);
+  base = base.replace(/-[A-Za-z0-9]{15,}$/, "");
+  base = base.replace(/^\d{10,14}_/, "");
+  base = base.replace(/_+/g, " ").trim();
+  return (base + ext) || raw;
 };
 
 const isAbsoluteUrl = (value: string) => /^https?:\/\//i.test(value);
@@ -1346,7 +1377,7 @@ export default function AcrDetailPage() {
                                         className="flex items-center gap-1.5 text-sm text-[#105789] hover:underline font-medium"
                                       >
                                         <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15.172 7l-6.586 6.586a2 2 0 002.828 2.828L18 9.828A4 4 0 0012.172 4L5.586 10.586a6 6 0 008.485 8.485L20 13" /></svg>
-                                        {decodeURIComponent(ev.split("/").pop() ?? ev)}
+                                        {getEvidenciaName(ev, act.evidencia)}
                                       </a>
                                     ) : (
                                       <p key={`${ev}-${idx}`} className="text-sm text-slate-700">{ev}</p>
@@ -1653,7 +1684,7 @@ export default function AcrDetailPage() {
                                           className="flex items-center gap-1.5 text-sm text-[#105789] hover:underline font-medium"
                                         >
                                           <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15.172 7l-6.586 6.586a2 2 0 002.828 2.828L18 9.828A4 4 0 0012.172 4L5.586 10.586a6 6 0 008.485 8.485L20 13" /></svg>
-                                          {decodeURIComponent(ev.split("/").pop() ?? ev)}
+                                          {getEvidenciaName(ev, act.evidencia)}
                                         </a>
                                       ) : (
                                         <p key={`${ev}-${idx}`} className="text-sm text-slate-700">{ev}</p>
