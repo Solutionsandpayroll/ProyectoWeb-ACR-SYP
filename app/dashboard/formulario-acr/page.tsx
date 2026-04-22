@@ -6,10 +6,23 @@ import EvidenciaUpload from "@/components/EvidenciaUpload";
 import { getCargosForFechaRegistro, getSalarioPorCargo } from "@/lib/cargo-scale";
 
 // ─── Salary Table ───────────────────────────────────────────────────────────────
+const CARGO_MANUAL = "Otro/Externo";
+
 const calcCosto = (cargo: string, horas: number, fechaRegistro?: string): number => {
   const salario = getSalarioPorCargo(cargo, fechaRegistro ?? null);
   if (!salario || !horas) return 0;
   return Math.round((salario / 180) * horas);
+};
+
+/** For Otro/Externo uses manual hourly price; otherwise uses salary table. */
+const calcCostoOE = (
+  cargo: string,
+  horas: number,
+  precioHoraManual: number | "",
+  fechaRegistro?: string,
+): number => {
+  if (cargo === CARGO_MANUAL) return Math.round(Number(precioHoraManual || 0) * (Number(horas) || 0));
+  return calcCosto(cargo, horas, fechaRegistro);
 };
 
 const parseDecimalInput = (value: string): number | "" => {
@@ -85,6 +98,7 @@ interface ResponsableCorreccion {
   nombre: string;
   cargo: string;
   horas: number | "";
+  precioHoraManual: number | "";
   fechaInicio: string;
   fechaFin: string;
 }
@@ -101,6 +115,7 @@ interface ResponsablePlan {
   nombreEjecucion: string;
   cargoEjecucion: string;
   horasEjecucion: number | "";
+  precioHoraManualEjec: number | "";
   fechaInicioEjecucion: string;
   fechaFinEjecucion: string;
   nombreSeguimiento: string;
@@ -108,6 +123,7 @@ interface ResponsablePlan {
   fechaSeguimiento: string;
   estadoSeguimiento: string;
   horasSeguimiento: number | "";
+  precioHoraManualSeg: number | "";
   evidencia: string;
 }
 
@@ -124,6 +140,7 @@ const newResponsableCorreccion = (): ResponsableCorreccion => ({
   nombre: "",
   cargo: "",
   horas: "",
+  precioHoraManual: "",
   fechaInicio: "",
   fechaFin: "",
 });
@@ -140,6 +157,7 @@ const newResponsablePlan = (): ResponsablePlan => ({
   nombreEjecucion: "",
   cargoEjecucion: "",
   horasEjecucion: "",
+  precioHoraManualEjec: "",
   fechaInicioEjecucion: "",
   fechaFinEjecucion: "",
   nombreSeguimiento: "",
@@ -147,6 +165,7 @@ const newResponsablePlan = (): ResponsablePlan => ({
   fechaSeguimiento: "",
   estadoSeguimiento: "",
   horasSeguimiento: "",
+  precioHoraManualSeg: "",
   evidencia: "",
 });
 
@@ -271,8 +290,8 @@ export default function FormularioAcrPage() {
     [info.fechaRegistro]
   );
 
-  const calcCostoActual = (cargo: string, horas: number) =>
-    calcCosto(cargo, horas, info.fechaRegistro);
+  const calcCostoActual = (cargo: string, horas: number, precioHoraManual?: number | "") =>
+    calcCostoOE(cargo, horas, precioHoraManual ?? "", info.fechaRegistro);
 
   const showLegacyCausasSelector = useMemo(() => {
     const consecutiveNumber = getConsecutivoNumber(info.consecutivo);
@@ -347,6 +366,7 @@ export default function FormularioAcrPage() {
           nombre: pick(NOMBRES),
           cargo: cargoEj,
           horas: horasEj,
+          precioHoraManual: "",
           fechaInicio: dateStr(1),
           fechaFin: dateStr(5),
         }],
@@ -360,6 +380,7 @@ export default function FormularioAcrPage() {
           nombre: pick(NOMBRES),
           cargo: pick(cargosDisponibles.map((c) => c.cargo)),
           horas: randInt(2, 8),
+          precioHoraManual: "",
           fechaInicio: dateStr(2),
           fechaFin: dateStr(6),
         }],
@@ -385,6 +406,7 @@ export default function FormularioAcrPage() {
         nombreEjecucion: pick(NOMBRES),
         cargoEjecucion: cargoEj,
         horasEjecucion: horasEj,
+        precioHoraManualEjec: "",
         fechaInicioEjecucion: dateStr(3),
         fechaFinEjecucion: dateStr(20),
         nombreSeguimiento: pick(NOMBRES),
@@ -392,6 +414,7 @@ export default function FormularioAcrPage() {
         fechaSeguimiento: dateStr(25),
         estadoSeguimiento: "Abierta",
         horasSeguimiento: horasSeg,
+        precioHoraManualSeg: "",
         evidencia: "Procedimiento actualizado, acta de socialización firmada.",
       }],
     }]);
@@ -496,7 +519,7 @@ export default function FormularioAcrPage() {
         (sum, act) =>
           sum +
           act.responsables.reduce(
-            (s, r) => s + calcCostoActual(r.cargo, Number(r.horas) || 0),
+            (s, r) => s + calcCostoActual(r.cargo, Number(r.horas) || 0, r.precioHoraManual),
             0
           ),
         0
@@ -511,7 +534,7 @@ export default function FormularioAcrPage() {
           sum +
           act.responsables.reduce(
             (s, r) =>
-              s + calcCostoActual(r.cargoEjecucion, Number(r.horasEjecucion) || 0),
+              s + calcCostoActual(r.cargoEjecucion, Number(r.horasEjecucion) || 0, r.precioHoraManualEjec),
             0
           ),
         0
@@ -527,7 +550,7 @@ export default function FormularioAcrPage() {
           act.responsables.reduce(
             (s, r) =>
               s +
-              calcCostoActual(r.cargoSeguimiento, Number(r.horasSeguimiento) || 0),
+              calcCostoActual(r.cargoSeguimiento, Number(r.horasSeguimiento) || 0, r.precioHoraManualSeg),
             0
           ),
         0
@@ -704,7 +727,7 @@ export default function FormularioAcrPage() {
             evidencia:   a.evidencia   || null,
             observaciones: a.observaciones || null,
             costoTotal: a.responsables.reduce(
-              (s, r) => s + calcCostoActual(r.cargo, Number(r.horas) || 0), 0
+              (s, r) => s + calcCostoActual(r.cargo, Number(r.horas) || 0, r.precioHoraManual), 0
             ),
             responsables: a.responsables.map((r) => ({
               nombre:      r.nombre      || null,
@@ -712,7 +735,7 @@ export default function FormularioAcrPage() {
               horas:       Number(r.horas) || 0,
               fechaInicio: r.fechaInicio || null,
               fechaFin:    r.fechaFin    || null,
-              costo:       calcCostoActual(r.cargo, Number(r.horas) || 0),
+              costo:       calcCostoActual(r.cargo, Number(r.horas) || 0, r.precioHoraManual),
             })),
           })),
 
@@ -731,8 +754,8 @@ export default function FormularioAcrPage() {
             costoTotal: a.responsables.reduce(
               (s, r) =>
                 s +
-                calcCostoActual(r.cargoEjecucion,    Number(r.horasEjecucion)    || 0) +
-                calcCostoActual(r.cargoSeguimiento,  Number(r.horasSeguimiento)  || 0),
+                calcCostoActual(r.cargoEjecucion,    Number(r.horasEjecucion)    || 0, r.precioHoraManualEjec) +
+                calcCostoActual(r.cargoSeguimiento,  Number(r.horasSeguimiento)  || 0, r.precioHoraManualSeg),
               0
             ),
             responsables: a.responsables.map((r) => ({
@@ -741,13 +764,13 @@ export default function FormularioAcrPage() {
               horasEjecucion:      Number(r.horasEjecucion)   || 0,
               fechaInicioEjecucion: r.fechaInicioEjecucion || null,
               fechaFinEjecucion:   r.fechaFinEjecucion    || null,
-              costoEjecucion:      calcCostoActual(r.cargoEjecucion, Number(r.horasEjecucion) || 0),
+              costoEjecucion:      calcCostoActual(r.cargoEjecucion, Number(r.horasEjecucion) || 0, r.precioHoraManualEjec),
               nombreSeguimiento:   r.nombreSeguimiento    || null,
               cargoSeguimiento:    r.cargoSeguimiento     || null,
               horasSeguimiento:    Number(r.horasSeguimiento) || 0,
               fechaSeguimiento:    r.fechaSeguimiento     || null,
               estadoSeguimiento:   r.estadoSeguimiento    || 'Abierta',
-              costoSeguimiento:    calcCostoActual(r.cargoSeguimiento, Number(r.horasSeguimiento) || 0),
+              costoSeguimiento:    calcCostoActual(r.cargoSeguimiento, Number(r.horasSeguimiento) || 0, r.precioHoraManualSeg),
             })),
           })),
 
@@ -1045,7 +1068,8 @@ export default function FormularioAcrPage() {
                       {act.responsables.map((resp, rIdx) => {
                         const costo = calcCostoActual(
                           resp.cargo,
-                          Number(resp.horas) || 0
+                          Number(resp.horas) || 0,
+                          resp.precioHoraManual
                         );
                         return (
                           <div
@@ -1084,6 +1108,19 @@ export default function FormularioAcrPage() {
                                     </option>
                                   ))}
                                 </select>
+                                {resp.cargo === CARGO_MANUAL && (
+                                  <input
+                                    className={`${inputCls} mt-1`}
+                                    type="number"
+                                    min="0"
+                                    step="any"
+                                    placeholder="Precio por hora (COP)"
+                                    value={resp.precioHoraManual}
+                                    onChange={(e) =>
+                                      updateRespCorr(aIdx, rIdx, "precioHoraManual", parseDecimalInput(e.target.value))
+                                    }
+                                  />
+                                )}
                               </div>
                               <div>
                                 <label className={labelCls}>Tiempo (h)</label>
@@ -1499,11 +1536,13 @@ export default function FormularioAcrPage() {
                     {act.responsables.map((resp, rIdx) => {
                       const costoEjec = calcCostoActual(
                         resp.cargoEjecucion,
-                        Number(resp.horasEjecucion) || 0
+                        Number(resp.horasEjecucion) || 0,
+                        resp.precioHoraManualEjec
                       );
                       const costoSeg = calcCostoActual(
                         resp.cargoSeguimiento,
-                        Number(resp.horasSeguimiento) || 0
+                        Number(resp.horasSeguimiento) || 0,
+                        resp.precioHoraManualSeg
                       );
                       return (
                         <div
@@ -1558,6 +1597,19 @@ export default function FormularioAcrPage() {
                                     <option key={c.cargo} value={c.cargo}>{c.cargo}</option>
                                   ))}
                                 </select>
+                                {resp.cargoEjecucion === CARGO_MANUAL && (
+                                  <input
+                                    className={`${inputCls} mt-1`}
+                                    type="number"
+                                    min="0"
+                                    step="any"
+                                    placeholder="Precio por hora (COP)"
+                                    value={resp.precioHoraManualEjec}
+                                    onChange={(e) =>
+                                      updateRespPlan(aIdx, rIdx, "precioHoraManualEjec", parseDecimalInput(e.target.value))
+                                    }
+                                  />
+                                )}
                               </div>
                               <div>
                                 <label className={labelCls}>Horas</label>
@@ -1640,6 +1692,19 @@ export default function FormularioAcrPage() {
                                     <option key={c.cargo} value={c.cargo}>{c.cargo}</option>
                                   ))}
                                 </select>
+                                {resp.cargoSeguimiento === CARGO_MANUAL && (
+                                  <input
+                                    className={`${inputCls} mt-1`}
+                                    type="number"
+                                    min="0"
+                                    step="any"
+                                    placeholder="Precio por hora (COP)"
+                                    value={resp.precioHoraManualSeg}
+                                    onChange={(e) =>
+                                      updateRespPlan(aIdx, rIdx, "precioHoraManualSeg", parseDecimalInput(e.target.value))
+                                    }
+                                  />
+                                )}
                               </div>
                               <div>
                                 <label className={labelCls}>F. Seg.</label>

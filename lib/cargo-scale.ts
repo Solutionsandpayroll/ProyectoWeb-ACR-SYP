@@ -14,11 +14,12 @@ export const CARGOS_OLD_SCALE: CargoSalario[] = [
   { cargo: "Lider Outsourcing de Tesoreria", salario: 6158000 },
   { cargo: "Profesional SGI", salario: 5119000 },
   { cargo: "Profesional de Nomina", salario: 5119000 },
-  { cargo: "Profesional Back office Sucursales", salario: 5119000 },
+  { cargo: "Profesional de Employer of Record Sucursales", salario: 5119000 },
   { cargo: "Analista Administrativo y financiero", salario: 4183000 },
   { cargo: "Analista de Nómina", salario: 4183000 },
   { cargo: "Analista Administración de personal", salario: 4183000 },
   { cargo: "Analista de EoR", salario: 4183000 },
+  { cargo: "Analista de Nómina Perú", salario: 4183000 },
   { cargo: "Tecnico de Automatización", salario: 4183000 },
   { cargo: "Asistente Administrativo y Financiero", salario: 3335000 },
   { cargo: "Asistente Comercial", salario: 3335000 },
@@ -28,6 +29,7 @@ export const CARGOS_OLD_SCALE: CargoSalario[] = [
   { cargo: "Asistente de EoR", salario: 3335000 },
   { cargo: "Asistente de tesorería", salario: 3335000 },
   { cargo: "Auxiliar de nomina", salario: 2627000 },
+  { cargo: "Otro/Externo", salario: 0 },
 ];
 
 export const CARGOS_NEW_SCALE: CargoSalario[] = [
@@ -41,11 +43,12 @@ export const CARGOS_NEW_SCALE: CargoSalario[] = [
   { cargo: "Lider Outsourcing de Tesoreria", salario: 6710000 },
   { cargo: "Profesional SGI", salario: 5700000 },
   { cargo: "Profesional de Nomina", salario: 5700000 },
-  { cargo: "Profesional Back office Sucursales", salario: 5700000 },
+  { cargo: "Profesional de Employer of Record Sucursales", salario: 5700000 },
   { cargo: "Analista Administrativo y financiero", salario: 4600000 },
   { cargo: "Analista de Nómina", salario: 4600000 },
   { cargo: "Analista Administración de personal", salario: 4600000 },
   { cargo: "Analista de EoR", salario: 4600000 },
+  { cargo: "Analista de Nómina Perú", salario: 4600000 },
   { cargo: "Tecnico de Automatización", salario: 4600000 },
   { cargo: "Asistente Administrativo y Financiero", salario: 3650000 },
   { cargo: "Asistente Comercial", salario: 3650000 },
@@ -57,6 +60,7 @@ export const CARGOS_NEW_SCALE: CargoSalario[] = [
   { cargo: "Auxiliar de nomina", salario: 3650000 },
   { cargo: "Aprendiz", salario: 2770000 },
   { cargo: "Practicante", salario: 2770000 },
+  { cargo: "Otro/Externo", salario: 0 },
 ];
 
 const isLegacyJanuary2026 = (fechaRegistro: string | null | undefined): boolean => {

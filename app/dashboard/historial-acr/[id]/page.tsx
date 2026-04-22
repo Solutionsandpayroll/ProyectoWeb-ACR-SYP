@@ -8,6 +8,7 @@ import Header from "@/components/Header";
 import { getCargosForFechaRegistro, getSalarioPorCargo } from "@/lib/cargo-scale";
 
 // â”€â”€â”€ Salary Table â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+const CARGO_MANUAL = "Otro/Externo";
 const calcCostoByRegistroDate = (cargo: string, horas: number, fechaRegistro?: string): number => {
   const salario = getSalarioPorCargo(cargo, fechaRegistro ?? null);
   if (!salario || !horas) return 0;
@@ -122,14 +123,17 @@ interface SessionData {
 // â”€â”€â”€ Edit types â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 type CorrRespEdit = {
   nombre: string; cargo: string; horas: number | "";
+  precioHoraManual: number | "";
   fechaInicio: string; fechaFin: string;
 };
 type CorrActEdit = { actividad: string; recursos: string[]; responsables: CorrRespEdit[]; evidencia: string; observaciones: string };
 
 type PlanRespEdit = {
   nombreEjecucion: string; cargoEjecucion: string; horasEjecucion: number | "";
+  precioHoraManualEjec: number | "";
   fechaInicioEjecucion: string; fechaFinEjecucion: string;
   nombreSeguimiento: string; cargoSeguimiento: string; horasSeguimiento: number | "";
+  precioHoraManualSeg: number | "";
   fechaSeguimiento: string; estadoSeguimiento: string;
 };
 type PlanActEdit = { descripcion: string; causasAsociadas: string[]; responsables: PlanRespEdit[]; evidencia: string; observaciones: string };
@@ -155,12 +159,14 @@ type EditData = {
 };
 
 // â”€â”€â”€ Factories â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-const newCorrResp = (): CorrRespEdit => ({ nombre: "", cargo: "", horas: "", fechaInicio: "", fechaFin: "" });
+const newCorrResp = (): CorrRespEdit => ({ nombre: "", cargo: "", horas: "", precioHoraManual: "", fechaInicio: "", fechaFin: "" });
 const newCorrAct  = (): CorrActEdit  => ({ actividad: "", recursos: [], responsables: [newCorrResp()], evidencia: "", observaciones: "" });
 const newPlanResp = (): PlanRespEdit => ({
   nombreEjecucion: "", cargoEjecucion: "", horasEjecucion: "",
+  precioHoraManualEjec: "",
   fechaInicioEjecucion: "", fechaFinEjecucion: "",
   nombreSeguimiento: "", cargoSeguimiento: "", horasSeguimiento: "",
+  precioHoraManualSeg: "",
   fechaSeguimiento: "", estadoSeguimiento: "Abierta",
 });
 const newPlanAct = (): PlanActEdit => ({ descripcion: "", causasAsociadas: [], responsables: [newPlanResp()], evidencia: "", observaciones: "" });
@@ -261,6 +267,7 @@ function initEditData(d: ApiData): EditData {
             nombre:     r.nombre ?? "",
             cargo:      r.cargo  ?? "",
             horas:      Number(r.horas) as number | "",
+            precioHoraManual: (r.cargo === "Otro/Externo" && Number(r.horas) > 0 ? Math.round(r.costo / Number(r.horas)) : "") as number | "",
             fechaInicio: toInputDate(r.fecha_inicio),
             fechaFin:    toInputDate(r.fecha_fin),
           })),
@@ -284,11 +291,13 @@ function initEditData(d: ApiData): EditData {
               nombreEjecucion:      ejec[k]?.nombre ?? "",
               cargoEjecucion:       ejec[k]?.cargo  ?? "",
               horasEjecucion:       Number(ejec[k]?.horas ?? 0) as number | "",
+              precioHoraManualEjec: (ejec[k]?.cargo === "Otro/Externo" && Number(ejec[k]?.horas ?? 0) > 0 ? Math.round((ejec[k]?.costo ?? 0) / Number(ejec[k]?.horas)) : "") as number | "",
               fechaInicioEjecucion: toInputDate(ejec[k]?.fecha_inicio),
               fechaFinEjecucion:    toInputDate(ejec[k]?.fecha_fin),
               nombreSeguimiento:    segu[k]?.nombre ?? "",
               cargoSeguimiento:     segu[k]?.cargo  ?? "",
               horasSeguimiento:     Number(segu[k]?.horas ?? 0) as number | "",
+              precioHoraManualSeg:  (segu[k]?.cargo === "Otro/Externo" && Number(segu[k]?.horas ?? 0) > 0 ? Math.round((segu[k]?.costo ?? 0) / Number(segu[k]?.horas)) : "") as number | "",
               fechaSeguimiento:     toInputDate(segu[k]?.fecha_inicio),
               estadoSeguimiento:    segu[k]?.estado ?? "Abierta",
             })),
@@ -652,7 +661,10 @@ export default function AcrDetailPage() {
     [fechaRegistroEscala]
   );
   const calcCosto = useCallback(
-    (cargo: string, horas: number) => calcCostoByRegistroDate(cargo, horas, fechaRegistroEscala),
+    (cargo: string, horas: number, precioHoraManual?: number | "") => {
+      if (cargo === CARGO_MANUAL) return Math.round(Number(precioHoraManual || 0) * (Number(horas) || 0));
+      return calcCostoByRegistroDate(cargo, horas, fechaRegistroEscala);
+    },
     [fechaRegistroEscala]
   );
 
@@ -661,7 +673,7 @@ export default function AcrDetailPage() {
     if (!editData) return 0;
     return editData.actividadesCorreccion.reduce(
       (sum, act) => sum + act.responsables.reduce(
-        (s, r) => s + calcCosto(r.cargo, Number(r.horas) || 0), 0
+        (s, r) => s + calcCosto(r.cargo, Number(r.horas) || 0, r.precioHoraManual), 0
       ), 0
     );
   }, [editData, calcCosto]);
@@ -670,7 +682,7 @@ export default function AcrDetailPage() {
     if (!editData) return 0;
     return editData.actividadesPlan.reduce(
       (sum, act) => sum + act.responsables.reduce(
-        (s, r) => s + calcCosto(r.cargoEjecucion, Number(r.horasEjecucion) || 0), 0
+        (s, r) => s + calcCosto(r.cargoEjecucion, Number(r.horasEjecucion) || 0, r.precioHoraManualEjec), 0
       ), 0
     );
   }, [editData, calcCosto]);
@@ -679,7 +691,7 @@ export default function AcrDetailPage() {
     if (!editData) return 0;
     return editData.actividadesPlan.reduce(
       (sum, act) => sum + act.responsables.reduce(
-        (s, r) => s + calcCosto(r.cargoSeguimiento, Number(r.horasSeguimiento) || 0), 0
+        (s, r) => s + calcCosto(r.cargoSeguimiento, Number(r.horasSeguimiento) || 0, r.precioHoraManualSeg), 0
       ), 0
     );
   }, [editData, calcCosto]);
@@ -805,14 +817,14 @@ export default function AcrDetailPage() {
             recursos:   a.recursos,
             evidencia:  a.evidencia  || null,
             observaciones: a.observaciones || null,
-            costoTotal: a.responsables.reduce((s, r) => s + calcCosto(r.cargo, Number(r.horas) || 0), 0),
+            costoTotal: a.responsables.reduce((s, r) => s + calcCosto(r.cargo, Number(r.horas) || 0, r.precioHoraManual), 0),
             responsables: a.responsables.map((r) => ({
               nombre:     r.nombre     || null,
               cargo:      r.cargo      || null,
               horas:      Number(r.horas) || 0,
               fechaInicio: r.fechaInicio || null,
               fechaFin:    r.fechaFin   || null,
-              costo:       calcCosto(r.cargo, Number(r.horas) || 0),
+              costo:       calcCosto(r.cargo, Number(r.horas) || 0, r.precioHoraManual),
             })),
           })),
         causasInmediatas: editData.causasInmediatas.filter((c) => c.trim()),
@@ -827,8 +839,8 @@ export default function AcrDetailPage() {
             costoTotal: a.responsables.reduce(
               (s, r) =>
                 s +
-                calcCosto(r.cargoEjecucion,  Number(r.horasEjecucion)  || 0) +
-                calcCosto(r.cargoSeguimiento, Number(r.horasSeguimiento) || 0),
+                calcCosto(r.cargoEjecucion,  Number(r.horasEjecucion)  || 0, r.precioHoraManualEjec) +
+                calcCosto(r.cargoSeguimiento, Number(r.horasSeguimiento) || 0, r.precioHoraManualSeg),
               0
             ),
             responsables: a.responsables.map((r) => ({
@@ -837,13 +849,13 @@ export default function AcrDetailPage() {
               horasEjecucion:       Number(r.horasEjecucion) || 0,
               fechaInicioEjecucion: r.fechaInicioEjecucion || null,
               fechaFinEjecucion:    r.fechaFinEjecucion    || null,
-              costoEjecucion:       calcCosto(r.cargoEjecucion, Number(r.horasEjecucion) || 0),
+              costoEjecucion:       calcCosto(r.cargoEjecucion, Number(r.horasEjecucion) || 0, r.precioHoraManualEjec),
               nombreSeguimiento:    r.nombreSeguimiento    || null,
               cargoSeguimiento:     r.cargoSeguimiento     || null,
               horasSeguimiento:     Number(r.horasSeguimiento) || 0,
               fechaSeguimiento:     r.fechaSeguimiento     || null,
               estadoSeguimiento:    r.estadoSeguimiento    || "Abierta",
-              costoSeguimiento:     calcCosto(r.cargoSeguimiento, Number(r.horasSeguimiento) || 0),
+              costoSeguimiento:     calcCosto(r.cargoSeguimiento, Number(r.horasSeguimiento) || 0, r.precioHoraManualSeg),
             })),
           })),
         costosAsociados: {
@@ -1275,6 +1287,11 @@ export default function AcrDetailPage() {
                                 </td>
                                 <td className="px-2 py-1.5">
                                   <CargoSelect value={r.cargo} onChange={(v) => updCorrResp(ai, ri, { cargo: v })} cargos={cargosDisponibles} />
+                                  {r.cargo === CARGO_MANUAL && (
+                                    <input type="number" step="any" min="0" placeholder="$/h" className="mt-1 w-24 text-xs border border-slate-200 rounded px-2 py-1 focus:outline-none focus:border-[#105789]"
+                                      value={r.precioHoraManual}
+                                      onChange={(e) => updCorrResp(ai, ri, { precioHoraManual: parseDecimalInput(e.target.value) })} />
+                                  )}
                                 </td>
                                 <td className="px-2 py-1.5">
                                   <input type="number" step="any" min="0" className="w-16 text-xs border border-slate-200 rounded px-2 py-1 focus:outline-none focus:border-[#105789]" value={r.horas} onChange={(e) => updCorrResp(ai, ri, { horas: parseDecimalInput(e.target.value) })} />
@@ -1286,7 +1303,7 @@ export default function AcrDetailPage() {
                                   <input type="date" className="text-xs border border-slate-200 rounded px-2 py-1 focus:outline-none focus:border-[#105789]" value={r.fechaFin} onChange={(e) => updCorrResp(ai, ri, { fechaFin: e.target.value })} />
                                 </td>
                                 <td className="px-2 py-1.5 font-mono text-slate-700 whitespace-nowrap">
-                                  {fmtCOP(calcCosto(r.cargo, Number(r.horas) || 0))}
+                                  {fmtCOP(calcCosto(r.cargo, Number(r.horas) || 0, r.precioHoraManual))}
                                 </td>
                                 <td className="px-2 py-1.5">
                                   <button onClick={() => updCorrAct(ai, { responsables: act.responsables.filter((_, j) => j !== ri) })} className="text-red-400 hover:text-red-600 text-lg leading-none">×</button>
@@ -1507,6 +1524,11 @@ export default function AcrDetailPage() {
                               <p className="text-[10px] font-bold uppercase text-blue-600 tracking-wide">Ejecución</p>
                               <input placeholder="Nombre" value={r.nombreEjecucion} onChange={(e) => updPlanResp(ai, ri, { nombreEjecucion: e.target.value })} className="w-full text-xs border border-slate-200 rounded px-2 py-1.5 focus:outline-none focus:border-[#105789]" />
                               <CargoSelect value={r.cargoEjecucion} onChange={(v) => updPlanResp(ai, ri, { cargoEjecucion: v })} cargos={cargosDisponibles} />
+                              {r.cargoEjecucion === CARGO_MANUAL && (
+                                <input type="number" step="any" min="0" placeholder="Precio/hora (COP)" className="w-full text-xs border border-slate-200 rounded px-2 py-1 focus:outline-none focus:border-[#105789] mt-1"
+                                  value={r.precioHoraManualEjec}
+                                  onChange={(e) => updPlanResp(ai, ri, { precioHoraManualEjec: parseDecimalInput(e.target.value) })} />
+                              )}
                               <div className="flex gap-2">
                                 <div className="flex-1">
                                   <label className="text-[10px] text-slate-400">Horas</label>
@@ -1535,12 +1557,17 @@ export default function AcrDetailPage() {
                                   />
                                 </div>
                               </div>
-                              <p className="text-xs text-slate-500">Costo estimado: <span className="font-mono font-semibold text-blue-700">{fmtCOP(calcCosto(r.cargoEjecucion, Number(r.horasEjecucion) || 0))}</span></p>
+                              <p className="text-xs text-slate-500">Costo estimado: <span className="font-mono font-semibold text-blue-700">{fmtCOP(calcCosto(r.cargoEjecucion, Number(r.horasEjecucion) || 0, r.precioHoraManualEjec))}</span></p>
                             </div>
                             <div className="space-y-2">
                               <p className="text-[10px] font-bold uppercase text-emerald-600 tracking-wide">Seguimiento</p>
                               <input placeholder="Nombre" value={r.nombreSeguimiento} onChange={(e) => updPlanResp(ai, ri, { nombreSeguimiento: e.target.value })} className="w-full text-xs border border-slate-200 rounded px-2 py-1.5 focus:outline-none focus:border-[#105789]" />
                               <CargoSelect value={r.cargoSeguimiento} onChange={(v) => updPlanResp(ai, ri, { cargoSeguimiento: v })} cargos={cargosDisponibles} />
+                              {r.cargoSeguimiento === CARGO_MANUAL && (
+                                <input type="number" step="any" min="0" placeholder="Precio/hora (COP)" className="w-full text-xs border border-slate-200 rounded px-2 py-1 focus:outline-none focus:border-[#105789] mt-1"
+                                  value={r.precioHoraManualSeg}
+                                  onChange={(e) => updPlanResp(ai, ri, { precioHoraManualSeg: parseDecimalInput(e.target.value) })} />
+                              )}
                               <div className="flex gap-2">
                                 <div className="flex-1">
                                   <label className="text-[10px] text-slate-400">Horas</label>
@@ -1557,7 +1584,7 @@ export default function AcrDetailPage() {
                                   </select>
                                 </div>
                               </div>
-                              <p className="text-xs text-slate-500">Costo estimado: <span className="font-mono font-semibold text-emerald-700">{fmtCOP(calcCosto(r.cargoSeguimiento, Number(r.horasSeguimiento) || 0))}</span></p>
+                              <p className="text-xs text-slate-500">Costo estimado: <span className="font-mono font-semibold text-emerald-700">{fmtCOP(calcCosto(r.cargoSeguimiento, Number(r.horasSeguimiento) || 0, r.precioHoraManualSeg))}</span></p>
                             </div>
                           </div>
                         </div>
@@ -2021,3 +2048,4 @@ export default function AcrDetailPage() {
     </div>
   );
 }
+
