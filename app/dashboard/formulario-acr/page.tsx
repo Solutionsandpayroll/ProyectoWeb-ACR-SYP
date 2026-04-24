@@ -280,6 +280,7 @@ export default function FormularioAcrPage() {
     tratamiento: "",
     evaluacionRiesgo: "",
     descripcion: "",
+    registradoPor: "",
   });
 
   const setInfoField = (key: string, value: string) =>
@@ -354,6 +355,7 @@ export default function FormularioAcrPage() {
       tratamiento,
       evaluacionRiesgo: pick(EVALUACION_RIESGO),
       descripcion: pick(DESCRIPCIONES),
+      registradoPor: pick(NOMBRES),
     });
 
     setCorreccionActs([
@@ -503,6 +505,7 @@ export default function FormularioAcrPage() {
       tratamiento:      '',
       evaluacionRiesgo: '',
       descripcion:      '',
+      registradoPor:    '',
     });
     setCorreccionActs([newActividadCorreccion(), newActividadCorreccion(), newActividadCorreccion()]);
     setCausasAnalisis('');
@@ -717,6 +720,7 @@ export default function FormularioAcrPage() {
         tratamiento:      info.tratamiento || null,
         evaluacionRiesgo: info.evaluacionRiesgo || null,
         descripcion:      info.descripcion || null,
+        registradoPor:    info.registradoPor || null,
 
         // Section 2
         actividadesCorreccion: correccionActs
@@ -945,6 +949,17 @@ export default function FormularioAcrPage() {
                           <option key={r} value={r}>{r}</option>
                         ))}
                       </select>
+                    </div>
+                    <div>
+                      <label className={labelCls}>Registrado por *</label>
+                      <input
+                        className={inputCls}
+                        type="text"
+                        placeholder="Nombre completo de quien registra"
+                        value={info.registradoPor}
+                        onChange={(e) => setInfoField("registradoPor", e.target.value)}
+                        required
+                      />
                     </div>
                   </div>
                 </div>

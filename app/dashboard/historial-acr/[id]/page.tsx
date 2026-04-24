@@ -105,6 +105,7 @@ interface ApiData {
     eficacia_cambios_sgi:      string | null;
     fecha_cierre: string | null;
     responsable_cierre: string | null;
+    registrado_por: string | null;
   };
   actividades_correccion: ActCorr[];
   causas: { inmediatas: string[]; raiz: string[] };
@@ -143,6 +144,7 @@ type EditData = {
   fechaApertura: string; fechaRegistro: string;
   tipoAccion: string; tratamiento: string; evaluacionRiesgo: string;
   descripcion: string; estado: string;
+  registradoPor: string;
   actividadesCorreccion: CorrActEdit[];
   causasInmediatas: string[]; causasRaiz: string[];
   actividadesPlan: PlanActEdit[];
@@ -256,6 +258,7 @@ function initEditData(d: ApiData): EditData {
     evaluacionRiesgo: reg.evaluacion_riesgo ?? "",
     descripcion:     reg.descripcion  ?? "",
     estado:          reg.estado       ?? "Abierta",
+    registradoPor:   reg.registrado_por ?? "",
 
     actividadesCorreccion: d.actividades_correccion.length > 0
       ? d.actividades_correccion.map((a) => ({
@@ -874,6 +877,7 @@ export default function AcrDetailPage() {
         eficaciaCambiosSgi:      editData.eficaciaCambiosSgi      || null,
         fechaCierre:             editData.fechaCierre || null,
         responsableCierre:       editData.responsableCierre || null,
+        registradoPor:           editData.registradoPor || null,
       };
       const res = await fetch(`/api/acr/${id}`, {
         method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload),
@@ -1187,6 +1191,10 @@ export default function AcrDetailPage() {
                     {EVALUACION_RIESGO.map((v) => <option key={v}>{v}</option>)}
                   </select>
                 </div>
+                <div>
+                  <label className={labelCls}>Registrado por</label>
+                  <input value={ed.registradoPor} onChange={(e) => setED({ registradoPor: e.target.value })} placeholder="Nombre completo" className={inputCls} />
+                </div>
                 {ed.fuente === "Salidas no conformes" && (
                   <div className="col-span-2">
                     <label className={labelCls}>Tratamiento</label>
@@ -1207,6 +1215,7 @@ export default function AcrDetailPage() {
                 <Field label={fx("Cliente", "Client")} value={tr("cliente", reg.cliente)} />
                 <Field label={fx("Tipo de acción", "Action type")} value={tr("tipoAccion", reg.tipo_accion)} />
                 <Field label={fx("Evaluación del riesgo", "Risk assessment")} value={tr("evaluacionRiesgo", reg.evaluacion_riesgo)} />
+                <Field label={fx("Registrado por", "Registered by")} value={reg.registrado_por ?? undefined} />
                 {reg.fuente === "Salidas no conformes" && (
                   <Field label={fx("Tratamiento", "Treatment")} value={tr("tratamiento", reg.tratamiento)} />
                 )}

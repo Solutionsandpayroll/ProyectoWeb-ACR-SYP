@@ -28,6 +28,7 @@ export interface AcrRecord {
   estado: AcrStatus;
   created_at: string;
   costo_total: number;
+  registrado_por: string | null;
 }
 
 export interface DashboardStats {

@@ -1,5 +1,28 @@
 @import "tailwindcss";
 
+/* ── Always show vertical scrollbar (accessible for non-mouse users) ─────── */
+html {
+  overflow-y: scroll;
+}
+html::-webkit-scrollbar          { width: 8px; }
+html::-webkit-scrollbar-track    { background: #f1f5f9; }
+html::-webkit-scrollbar-thumb    { background: #94a3b8; border-radius: 9999px; }
+html::-webkit-scrollbar-thumb:hover { background: #64748b; }
+/* Firefox */
+html { scrollbar-color: #94a3b8 #f1f5f9; scrollbar-width: thin; }
+
+/* ── Top-scrollbar mirror: white track, gray thumb ──────────────────────── */
+.top-scrollbar::-webkit-scrollbar        { height: 8px; }
+.top-scrollbar::-webkit-scrollbar-track  { background: #ffffff; }
+.top-scrollbar::-webkit-scrollbar-thumb  { background: #94a3b8; border-radius: 9999px; }
+.top-scrollbar::-webkit-scrollbar-thumb:hover { background: #64748b; }
+/* Firefox */
+.top-scrollbar { scrollbar-color: #94a3b8 #ffffff; scrollbar-width: thin; }
+
+/* Hide scrollbar visually while keeping scroll functionality */
+.hide-scrollbar::-webkit-scrollbar { display: none; }
+.hide-scrollbar { scrollbar-width: none; }
+
 @media print {
   /* Preserve background colors and images */
   *,

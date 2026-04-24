@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import Link from "next/link";
 import Header from "@/components/Header";
 
@@ -66,6 +66,9 @@ export default function HistorialGdsPage() {
   const [filterAnio, setFilterAnio]     = useState("Todos");
   const [sortBy, setSortBy]             = useState<"fecha" | "consecutivo">("fecha");
 
+  const topScrollRef   = useRef<HTMLDivElement>(null);
+  const tableScrollRef = useRef<HTMLDivElement>(null);
+
   // ── Fetch ──────────────────────────────────────────────────────────────
   const fetchRecords = async () => {
     setLoading(true);
@@ -83,6 +86,20 @@ export default function HistorialGdsPage() {
   };
 
   useEffect(() => { fetchRecords(); }, []);
+
+  useEffect(() => {
+    const top   = topScrollRef.current;
+    const table = tableScrollRef.current;
+    if (!top || !table) return;
+    const syncTopToTable = () => { table.scrollLeft = top.scrollLeft; };
+    const syncTableToTop = () => { top.scrollLeft   = table.scrollLeft; };
+    top.addEventListener("scroll", syncTopToTable);
+    table.addEventListener("scroll", syncTableToTop);
+    return () => {
+      top.removeEventListener("scroll", syncTopToTable);
+      table.removeEventListener("scroll", syncTableToTop);
+    };
+  }, []);
 
   // ── Derived ────────────────────────────────────────────────────────────
   const tipoOptions = useMemo(() => {
@@ -301,7 +318,12 @@ export default function HistorialGdsPage() {
             </p>
           </div>
 
-          <div className="overflow-x-auto">
+          {/* ── Top scrollbar (mirror) ─────────────────────────────── */}
+          <div ref={topScrollRef} className="top-scrollbar overflow-x-scroll border-b border-slate-100">
+            <div className="min-w-175 h-px" />
+          </div>
+
+          <div ref={tableScrollRef} className="overflow-x-auto">
             <table className="w-full text-sm min-w-175">
               <thead>
                 <tr className="bg-slate-50 border-b border-slate-200">

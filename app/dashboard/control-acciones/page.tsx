@@ -105,6 +105,23 @@ export default function ControlAccionesPage() {
   rowsRef.current = rows;
   const saveTimers = useRef<Record<number, ReturnType<typeof setTimeout>>>({});
 
+  const topScrollRef   = useRef<HTMLDivElement>(null);
+  const tableScrollRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const top   = topScrollRef.current;
+    const table = tableScrollRef.current;
+    if (!top || !table) return;
+    const syncTopToTable = () => { table.scrollLeft = top.scrollLeft; };
+    const syncTableToTop = () => { top.scrollLeft   = table.scrollLeft; };
+    top.addEventListener("scroll", syncTopToTable);
+    table.addEventListener("scroll", syncTableToTop);
+    return () => {
+      top.removeEventListener("scroll", syncTopToTable);
+      table.removeEventListener("scroll", syncTableToTop);
+    };
+  }, []);
+
   // Fetch session on mount
   useEffect(() => {
     let cancelled = false;
@@ -354,8 +371,13 @@ export default function ControlAccionesPage() {
             </div>
           </div>
 
+          {/* Top scrollbar mirror */}
+          <div ref={topScrollRef} className="top-scrollbar overflow-x-scroll border-b border-slate-200">
+            <div style={{ minWidth: 1280, height: 1 }} />
+          </div>
+
           {/* Scrollable table */}
-          <div className="overflow-x-auto">
+          <div ref={tableScrollRef} className="hide-scrollbar overflow-x-auto">
             {loading ? (
               <div className="flex items-center justify-center py-16 text-slate-400 gap-3">
                 <span className="w-5 h-5 border-2 border-slate-300 border-t-[#105789] rounded-full animate-spin" />

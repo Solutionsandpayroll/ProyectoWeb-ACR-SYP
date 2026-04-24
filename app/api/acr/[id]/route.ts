@@ -21,14 +21,20 @@ const normalizeEvidencia = (value: unknown): string | null => {
   try {
     const parsed = JSON.parse(trimmed) as unknown;
     if (Array.isArray(parsed)) {
+      // Preserve both plain-string entries and object entries {u, n} from EvidenciaUpload
       const files = parsed
-        .filter((v): v is string => typeof v === 'string')
-        .map((v) => v.trim())
-        .filter(Boolean)
+        .filter((v) => {
+          if (typeof v === 'string') return v.trim().length > 0;
+          if (typeof v === 'object' && v !== null && 'u' in v) {
+            const u = (v as { u?: unknown }).u;
+            return typeof u === 'string' && u.trim().length > 0;
+          }
+          return false;
+        })
         .slice(0, 3);
 
       if (files.length === 0) return null;
-      if (files.length === 1) return files[0];
+      // Always serialize as JSON array to preserve {u,n} objects
       return JSON.stringify(files);
     }
   } catch {
@@ -134,6 +140,7 @@ export async function PUT(
       tratamiento,
       evaluacionRiesgo,
       descripcion,
+      registradoPor,
       estado,
       actividadesCorreccion = [],
       causasInmediatas = [],
@@ -175,6 +182,7 @@ export async function PUT(
         tratamiento      = ${tratamiento   ?? null},
         evaluacion_riesgo = ${evaluacionRiesgo ?? null},
         descripcion      = ${descripcion   ?? null},
+        registrado_por   = ${registradoPor ?? null},
         estado           = ${nextEstado},
         eficacia_accion_adecuada  = ${eficaciaAccionAdecuada  ?? null},
         eficacia_no_conformidades = ${eficaciaNoConformidades ?? null},

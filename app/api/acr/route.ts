@@ -29,6 +29,7 @@ export async function GET() {
         r.descripcion,
         r.estado,
         r.created_at,
+        r.registrado_por,
         COALESCE(c.costo_total, 0) AS costo_total
       FROM acr_registros r
       LEFT JOIN costos_asociados c ON c.acr_id = r.id
@@ -57,6 +58,7 @@ export async function POST(request: NextRequest) {
       tratamiento,
       evaluacionRiesgo,
       descripcion,
+      registradoPor,
       // Section 2
       actividadesCorreccion = [],
       // Section 3
@@ -69,9 +71,9 @@ export async function POST(request: NextRequest) {
     } = body;
 
     // Validate required fields
-    if (!consecutivo || !fuente || !proceso || !fechaApertura || !fechaRegistro || !tipoAccion) {
+    if (!consecutivo || !fuente || !proceso || !fechaApertura || !fechaRegistro || !tipoAccion || !registradoPor) {
       return NextResponse.json(
-        { error: 'Faltan campos requeridos: consecutivo, fuente, proceso, fechaApertura, fechaRegistro, tipoAccion' },
+        { error: 'Faltan campos requeridos: consecutivo, fuente, proceso, fechaApertura, fechaRegistro, tipoAccion, registradoPor' },
         { status: 400 }
       );
     }
@@ -81,11 +83,11 @@ export async function POST(request: NextRequest) {
       INSERT INTO acr_registros (
         consecutivo, fuente, proceso, cliente,
         fecha_apertura, fecha_registro, tipo_accion,
-        tratamiento, evaluacion_riesgo, descripcion
+        tratamiento, evaluacion_riesgo, descripcion, registrado_por
       ) VALUES (
         ${consecutivo}, ${fuente}, ${proceso}, ${cliente ?? null},
         ${fechaApertura}, ${fechaRegistro}, ${tipoAccion},
-        ${tratamiento ?? null}, ${evaluacionRiesgo ?? null}, ${descripcion ?? null}
+        ${tratamiento ?? null}, ${evaluacionRiesgo ?? null}, ${descripcion ?? null}, ${registradoPor ?? null}
       )
       RETURNING id
     `;
