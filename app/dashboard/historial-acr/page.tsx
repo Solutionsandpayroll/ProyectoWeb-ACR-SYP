@@ -123,8 +123,9 @@ export default function HistorialAcrPage() {
     (r) => String(new Date(r.fecha_registro ?? r.fecha_apertura).getFullYear()) === filterAnio
   );
   const totalCosto   = base.reduce((s, r) => s + Number(r.costo_total), 0);
-  const totalAbierta = base.filter((r) => r.estado === "Abierta").length;
-  const totalCerrada = base.filter((r) => r.estado === "Cerrada").length;
+  const totalAbierta  = base.filter((r) => r.estado === "Abierta").length;
+  const totalParcial   = base.filter((r) => r.estado === "Parcial").length;
+  const totalCerrada   = base.filter((r) => r.estado === "Cerrada").length;
 
   return (
     <div className="flex flex-col flex-1">
@@ -133,10 +134,11 @@ export default function HistorialAcrPage() {
       <main className="flex-1 p-4 sm:p-6 space-y-6">
 
         {/* ── Summary cards ──────────────────────────────────────────────── */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
           {[
             { label: filterAnio === "Todos" ? "Total registros" : `Total ${filterAnio}`, value: loading ? "—" : base.length,                     color: "text-slate-800" },
             { label: "Abiertas",         value: loading ? "—" : totalAbierta,                      color: "text-amber-600" },
+            { label: "En proceso",       value: loading ? "—" : totalParcial,                      color: "text-blue-600" },
             { label: "Cerradas",         value: loading ? "—" : totalCerrada,                      color: "text-emerald-600" },
             { label: "Costo acumulado",  value: loading ? "—" : (fmtCOP(totalCosto) ?? "$ 0"),     color: "text-blue-700" },
           ].map(({ label, value, color }) => (

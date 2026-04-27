@@ -166,9 +166,37 @@ export async function PUT(
     }
 
     const isAdmin = isAdminSession(session);
-    const nextEstado = isAdmin ? (estado ?? currentRegistro.estado ?? 'Abierta') : currentRegistro.estado;
-    const nextFechaCierre = isAdmin ? (fechaCierre ?? null) : (currentRegistro.fecha_cierre ?? null);
-    const nextResponsableCierre = isAdmin ? (responsableCierre ?? null) : (currentRegistro.responsable_cierre ?? null);
+
+    // ── Auto-derive estado based on business rules ────────────────────────
+    // Priority 1: Closure section filled → Cerrada
+    // Priority 2: Any seguimiento activity with Parcial or Cerrada → Parcial
+    // Priority 3: Keep the estado sent by the client (admin can override manually)
+    const incomingFechaCierre      = isAdmin ? (fechaCierre      ?? null) : (currentRegistro.fecha_cierre      ?? null);
+    const incomingResponsableCierre = isAdmin ? (responsableCierre ?? null) : (currentRegistro.responsable_cierre ?? null);
+
+    let derivedEstado: string;
+    if (incomingFechaCierre && incomingResponsableCierre) {
+      // Closure section fully filled → always Cerrada
+      derivedEstado = 'Cerrada';
+    } else {
+      // Check if any plan activity seguimiento has Parcial or Cerrada
+      const hasProgressActivity = (actividadesPlan as Array<{ responsables?: Array<{ estadoSeguimiento?: string }> }>)
+        .some((act) =>
+          (act.responsables ?? []).some(
+            (r) => r.estadoSeguimiento === 'Parcial' || r.estadoSeguimiento === 'Cerrada'
+          )
+        );
+      if (hasProgressActivity) {
+        derivedEstado = 'Parcial';
+      } else {
+        // No auto-rule applies: use admin's manual selection or keep current
+        derivedEstado = isAdmin ? (estado ?? currentRegistro.estado ?? 'Abierta') : currentRegistro.estado;
+      }
+    }
+
+    const nextEstado             = derivedEstado;
+    const nextFechaCierre        = incomingFechaCierre;
+    const nextResponsableCierre  = incomingResponsableCierre;
 
     // ── Update main record ────────────────────────────────────────────────
     await sql`

@@ -19,6 +19,7 @@ async function getDashboardStatsByYear(year: number) {
     SELECT
       COUNT(*)::int AS total,
       COUNT(*) FILTER (WHERE estado = 'Abierta')::int AS abiertas,
+      COUNT(*) FILTER (WHERE estado = 'Parcial')::int AS parciales,
       COUNT(*) FILTER (WHERE estado = 'Cerrada')::int AS cerradas
     FROM acr_registros
     WHERE EXTRACT(YEAR FROM COALESCE(fecha_registro, fecha_apertura, created_at::date))::int = ${year}
@@ -27,6 +28,7 @@ async function getDashboardStatsByYear(year: number) {
   return {
     total: toNumber(row?.total),
     abiertas: toNumber(row?.abiertas),
+    parciales: toNumber(row?.parciales),
     cerradas: toNumber(row?.cerradas),
   };
 }
@@ -105,7 +107,7 @@ export default async function DashboardPage({
             </h2>
             <DashboardYearSelect years={years} selectedYear={selectedYear} />
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5">
             <div className="dash-enter" style={{ animationDelay: "0.12s" }}>
               <StatCard
                 title="Total ACR"
@@ -132,7 +134,20 @@ export default async function DashboardPage({
                 }
               />
             </div>
-            <div className="dash-enter" style={{ animationDelay: "0.24s" }}>
+            <div className="dash-enter" style={{ animationDelay: "0.22s" }}>
+              <StatCard
+                title="ACR En proceso"
+                value={stats.parciales}
+                description={`En seguimiento en ${selectedYear}`}
+                accentColor="blue"
+                icon={
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                }
+              />
+            </div>
+            <div className="dash-enter" style={{ animationDelay: "0.27s" }}>
               <StatCard
                 title="ACR Cerradas"
                 value={stats.cerradas}
