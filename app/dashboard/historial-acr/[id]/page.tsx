@@ -6,6 +6,7 @@ import Image from "next/image";
 import EvidenciaUpload from "@/components/EvidenciaUpload";
 import Header from "@/components/Header";
 import { getCargosForFechaRegistro, getSalarioPorCargo } from "@/lib/cargo-scale";
+import { RESPONSABLES_SEGUIMIENTO } from "@/lib/responsables";
 
 // â”€â”€â”€ Salary Table â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const CARGO_MANUAL = "Otro/Externo";
@@ -847,13 +848,13 @@ export default function AcrDetailPage() {
               0
             ),
             responsables: a.responsables.map((r) => ({
-              nombreEjecucion:      r.nombreEjecucion      || null,
+              nombreEjecucion:      (r.nombreEjecucion === "__otro__" ? null : r.nombreEjecucion) || null,
               cargoEjecucion:       r.cargoEjecucion       || null,
               horasEjecucion:       Number(r.horasEjecucion) || 0,
               fechaInicioEjecucion: r.fechaInicioEjecucion || null,
               fechaFinEjecucion:    r.fechaFinEjecucion    || null,
               costoEjecucion:       calcCosto(r.cargoEjecucion, Number(r.horasEjecucion) || 0, r.precioHoraManualEjec),
-              nombreSeguimiento:    r.nombreSeguimiento    || null,
+              nombreSeguimiento:    (r.nombreSeguimiento === "__otro__" ? null : r.nombreSeguimiento) || null,
               cargoSeguimiento:     r.cargoSeguimiento     || null,
               horasSeguimiento:     Number(r.horasSeguimiento) || 0,
               fechaSeguimiento:     r.fechaSeguimiento     || null,
@@ -1531,7 +1532,29 @@ export default function AcrDetailPage() {
                           <div className="grid md:grid-cols-2 gap-4">
                             <div className="space-y-2">
                               <p className="text-[10px] font-bold uppercase text-blue-600 tracking-wide">Ejecución</p>
-                              <input placeholder="Nombre" value={r.nombreEjecucion} onChange={(e) => updPlanResp(ai, ri, { nombreEjecucion: e.target.value })} className="w-full text-xs border border-slate-200 rounded px-2 py-1.5 focus:outline-none focus:border-[#105789]" />
+                              <select
+                                value={RESPONSABLES_SEGUIMIENTO.includes(r.nombreEjecucion) ? r.nombreEjecucion : (r.nombreEjecucion ? "__otro__" : "")}
+                                onChange={(e) => {
+                                  const val = e.target.value;
+                                  updPlanResp(ai, ri, { nombreEjecucion: val === "__otro__" ? "__otro__" : val });
+                                }}
+                                className="w-full text-xs border border-slate-200 rounded px-2 py-1.5 focus:outline-none focus:border-[#105789] bg-white"
+                              >
+                                <option value="">Seleccionar...</option>
+                                {RESPONSABLES_SEGUIMIENTO.slice().sort().map((n) => (
+                                  <option key={n} value={n}>{n}</option>
+                                ))}
+                                <option value="__otro__">Otro</option>
+                              </select>
+                              {!RESPONSABLES_SEGUIMIENTO.includes(r.nombreEjecucion) && r.nombreEjecucion !== "" && (
+                                <input
+                                  type="text"
+                                  placeholder="Nombre completo"
+                                  value={r.nombreEjecucion === "__otro__" ? "" : r.nombreEjecucion}
+                                  onChange={(e) => updPlanResp(ai, ri, { nombreEjecucion: e.target.value || "__otro__" })}
+                                  className="w-full text-xs border border-slate-200 rounded px-2 py-1.5 focus:outline-none focus:border-[#105789] mt-1"
+                                />
+                              )}
                               <CargoSelect value={r.cargoEjecucion} onChange={(v) => updPlanResp(ai, ri, { cargoEjecucion: v })} cargos={cargosDisponibles} />
                               {r.cargoEjecucion === CARGO_MANUAL && (
                                 <input type="number" step="any" min="0" placeholder="Precio/hora (COP)" className="w-full text-xs border border-slate-200 rounded px-2 py-1 focus:outline-none focus:border-[#105789] mt-1"
@@ -1570,7 +1593,29 @@ export default function AcrDetailPage() {
                             </div>
                             <div className="space-y-2">
                               <p className="text-[10px] font-bold uppercase text-emerald-600 tracking-wide">Seguimiento</p>
-                              <input placeholder="Nombre" value={r.nombreSeguimiento} onChange={(e) => updPlanResp(ai, ri, { nombreSeguimiento: e.target.value })} className="w-full text-xs border border-slate-200 rounded px-2 py-1.5 focus:outline-none focus:border-[#105789]" />
+                              <select
+                                value={RESPONSABLES_SEGUIMIENTO.includes(r.nombreSeguimiento) ? r.nombreSeguimiento : (r.nombreSeguimiento ? "__otro__" : "")}
+                                onChange={(e) => {
+                                  const val = e.target.value;
+                                  updPlanResp(ai, ri, { nombreSeguimiento: val === "__otro__" ? "__otro__" : val });
+                                }}
+                                className="w-full text-xs border border-slate-200 rounded px-2 py-1.5 focus:outline-none focus:border-[#105789] bg-white"
+                              >
+                                <option value="">Seleccionar...</option>
+                                {RESPONSABLES_SEGUIMIENTO.slice().sort().map((n) => (
+                                  <option key={n} value={n}>{n}</option>
+                                ))}
+                                <option value="__otro__">Otro</option>
+                              </select>
+                              {!RESPONSABLES_SEGUIMIENTO.includes(r.nombreSeguimiento) && r.nombreSeguimiento !== "" && (
+                                <input
+                                  type="text"
+                                  placeholder="Nombre completo"
+                                  value={r.nombreSeguimiento === "__otro__" ? "" : r.nombreSeguimiento}
+                                  onChange={(e) => updPlanResp(ai, ri, { nombreSeguimiento: e.target.value || "__otro__" })}
+                                  className="w-full text-xs border border-slate-200 rounded px-2 py-1.5 focus:outline-none focus:border-[#105789] mt-1"
+                                />
+                              )}
                               <CargoSelect value={r.cargoSeguimiento} onChange={(v) => updPlanResp(ai, ri, { cargoSeguimiento: v })} cargos={cargosDisponibles} />
                               {r.cargoSeguimiento === CARGO_MANUAL && (
                                 <input type="number" step="any" min="0" placeholder="Precio/hora (COP)" className="w-full text-xs border border-slate-200 rounded px-2 py-1 focus:outline-none focus:border-[#105789] mt-1"

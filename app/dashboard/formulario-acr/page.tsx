@@ -4,6 +4,7 @@ import { useState, useMemo, useEffect } from "react";
 import Header from "@/components/Header";
 import EvidenciaUpload from "@/components/EvidenciaUpload";
 import { getCargosForFechaRegistro, getSalarioPorCargo } from "@/lib/cargo-scale";
+import { RESPONSABLES_SEGUIMIENTO } from "@/lib/responsables";
 
 // ─── Salary Table ───────────────────────────────────────────────────────────────
 const CARGO_MANUAL = "Otro/Externo";
@@ -763,13 +764,13 @@ export default function FormularioAcrPage() {
               0
             ),
             responsables: a.responsables.map((r) => ({
-              nombreEjecucion:     r.nombreEjecucion     || null,
+              nombreEjecucion:     (r.nombreEjecucion === "__otro__" ? null : r.nombreEjecucion) || null,
               cargoEjecucion:      r.cargoEjecucion      || null,
               horasEjecucion:      Number(r.horasEjecucion)   || 0,
               fechaInicioEjecucion: r.fechaInicioEjecucion || null,
               fechaFinEjecucion:   r.fechaFinEjecucion    || null,
               costoEjecucion:      calcCostoActual(r.cargoEjecucion, Number(r.horasEjecucion) || 0, r.precioHoraManualEjec),
-              nombreSeguimiento:   r.nombreSeguimiento    || null,
+              nombreSeguimiento:   (r.nombreSeguimiento === "__otro__" ? null : r.nombreSeguimiento) || null,
               cargoSeguimiento:    r.cargoSeguimiento     || null,
               horasSeguimiento:    Number(r.horasSeguimiento) || 0,
               fechaSeguimiento:    r.fechaSeguimiento     || null,
@@ -1588,15 +1589,31 @@ export default function FormularioAcrPage() {
                             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
                               <div className="col-span-2">
                                 <label className={labelCls}>Nombre</label>
-                                <input
+                                <select
                                   className={inputCls}
-                                  type="text"
-                                  placeholder="Resp. ejecución"
-                                  value={resp.nombreEjecucion}
-                                  onChange={(e) =>
-                                    updateRespPlan(aIdx, rIdx, "nombreEjecucion", e.target.value)
-                                  }
-                                />
+                                  value={RESPONSABLES_SEGUIMIENTO.includes(resp.nombreEjecucion) ? resp.nombreEjecucion : (resp.nombreEjecucion ? "__otro__" : "")}
+                                  onChange={(e) => {
+                                    const val = e.target.value;
+                                    updateRespPlan(aIdx, rIdx, "nombreEjecucion", val === "__otro__" ? "__otro__" : val);
+                                  }}
+                                >
+                                  <option value="">Seleccionar...</option>
+                                  {RESPONSABLES_SEGUIMIENTO.slice().sort().map((n) => (
+                                    <option key={n} value={n}>{n}</option>
+                                  ))}
+                                  <option value="__otro__">Otro</option>
+                                </select>
+                                {!RESPONSABLES_SEGUIMIENTO.includes(resp.nombreEjecucion) && resp.nombreEjecucion !== "" && (
+                                  <input
+                                    className={`${inputCls} mt-1`}
+                                    type="text"
+                                    placeholder="Nombre completo"
+                                    value={resp.nombreEjecucion === "__otro__" ? "" : resp.nombreEjecucion}
+                                    onChange={(e) =>
+                                      updateRespPlan(aIdx, rIdx, "nombreEjecucion", e.target.value || "__otro__")
+                                    }
+                                  />
+                                )}
                               </div>
                               <div className="col-span-2">
                                 <label className={labelCls}>Cargo</label>
@@ -1683,15 +1700,31 @@ export default function FormularioAcrPage() {
                             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
                               <div className="col-span-2">
                                 <label className={labelCls}>Nombre</label>
-                                <input
+                                <select
                                   className={inputCls}
-                                  type="text"
-                                  placeholder="Resp. seguimiento"
-                                  value={resp.nombreSeguimiento}
-                                  onChange={(e) =>
-                                    updateRespPlan(aIdx, rIdx, "nombreSeguimiento", e.target.value)
-                                  }
-                                />
+                                  value={RESPONSABLES_SEGUIMIENTO.includes(resp.nombreSeguimiento) ? resp.nombreSeguimiento : (resp.nombreSeguimiento ? "__otro__" : "")}
+                                  onChange={(e) => {
+                                    const val = e.target.value;
+                                    updateRespPlan(aIdx, rIdx, "nombreSeguimiento", val === "__otro__" ? "__otro__" : val);
+                                  }}
+                                >
+                                  <option value="">Seleccionar...</option>
+                                  {RESPONSABLES_SEGUIMIENTO.slice().sort().map((n) => (
+                                    <option key={n} value={n}>{n}</option>
+                                  ))}
+                                  <option value="__otro__">Otro</option>
+                                </select>
+                                {!RESPONSABLES_SEGUIMIENTO.includes(resp.nombreSeguimiento) && resp.nombreSeguimiento !== "" && (
+                                  <input
+                                    className={`${inputCls} mt-1`}
+                                    type="text"
+                                    placeholder="Nombre completo"
+                                    value={resp.nombreSeguimiento === "__otro__" ? "" : resp.nombreSeguimiento}
+                                    onChange={(e) =>
+                                      updateRespPlan(aIdx, rIdx, "nombreSeguimiento", e.target.value || "__otro__")
+                                    }
+                                  />
+                                )}
                               </div>
                               <div className="col-span-2">
                                 <label className={labelCls}>Cargo</label>

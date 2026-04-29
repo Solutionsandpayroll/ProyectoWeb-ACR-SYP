@@ -29,13 +29,15 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000';
+  const rawAppUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000';
+  const appUrl    = /^https?:\/\//i.test(rawAppUrl) ? rawAppUrl : `https://${rawAppUrl}`;
   const configuredInterval = Number(process.env.NOTIFICATION_INTERVAL_MINUTES ?? 1440); // 1 day default
   const notificationIntervalMinutes =
     Number.isFinite(configuredInterval) && configuredInterval > 0
       ? Math.floor(configuredInterval)
       : 1440;
   const forceSend = ['1', 'true', 'yes'].includes((req.nextUrl.searchParams.get('force') ?? '').toLowerCase());
+  const dryRun    = ['1', 'true', 'yes'].includes((req.nextUrl.searchParams.get('dryrun') ?? '').toLowerCase());
 
   try {
     // ── Query ACRs that need a notification ────────────────────────────────
@@ -164,7 +166,7 @@ export async function POST(req: NextRequest) {
       }
 
       // ── Actualizar última notificación si se envió al menos un email ──────
-      if (sentEmails.length > 0) {
+      if (sentEmails.length > 0 && !dryRun) {
         await sql`
           INSERT INTO control_acciones_seguimiento (acr_id, ultima_notificacion, updated_at)
           VALUES (${acr.id}, NOW(), NOW())
@@ -181,7 +183,7 @@ export async function POST(req: NextRequest) {
     const totalSent = results.reduce((n, r) => n + r.emails.length, 0);
     console.log(`[cron/notificaciones-acr] Enviados ${totalSent} emails en ${results.length} ACRs.`);
 
-    return NextResponse.json({ sent: totalSent, results, force: forceSend, intervalMinutes: notificationIntervalMinutes });
+    return NextResponse.json({ sent: totalSent, results, force: forceSend, dryRun, intervalMinutes: notificationIntervalMinutes });
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);
     console.error('[cron/notificaciones-acr] Error:', msg);
