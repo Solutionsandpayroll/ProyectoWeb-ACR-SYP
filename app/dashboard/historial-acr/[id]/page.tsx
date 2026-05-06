@@ -714,12 +714,12 @@ export default function AcrDetailPage() {
       (sum, act) =>
         sum +
         (act.responsables ?? []).reduce(
-          (s, r) => s + calcCosto(r.cargo ?? "", Number(r.horas) || 0),
+          (s, r) => s + Number(r.costo),
           0
         ),
       0
     );
-  }, [data, calcCosto]);
+  }, [data]);
 
   const totalPlanEjecucionVista = useMemo(() => {
     if (!data) return 0;
@@ -727,12 +727,12 @@ export default function AcrDetailPage() {
       (sum, act) =>
         sum +
         (act.responsables_ejecucion ?? []).reduce(
-          (s, r) => s + calcCosto(r.cargo ?? "", Number(r.horas) || 0),
+          (s, r) => s + Number(r.costo),
           0
         ),
       0
     );
-  }, [data, calcCosto]);
+  }, [data]);
 
   const totalPlanSeguimientoVista = useMemo(() => {
     if (!data) return 0;
@@ -740,12 +740,12 @@ export default function AcrDetailPage() {
       (sum, act) =>
         sum +
         (act.responsables_seguimiento ?? []).reduce(
-          (s, r) => s + calcCosto(r.cargo ?? "", Number(r.horas) || 0),
+          (s, r) => s + Number(r.costo),
           0
         ),
       0
     );
-  }, [data, calcCosto]);
+  }, [data]);
 
   const totalExtraVista = useMemo(() => {
     if (!data) return 0;
@@ -1382,7 +1382,7 @@ export default function AcrDetailPage() {
                                   <td className="px-4 py-2 text-slate-600">{r.horas}</td>
                                   <td className="px-4 py-2 text-slate-500">{fmtDate(r.fecha_inicio)}</td>
                                   <td className="px-4 py-2 text-slate-500">{fmtDate(r.fecha_fin)}</td>
-                                  <td className="px-4 py-2 font-mono text-slate-700">{fmtCOP(calcCosto(r.cargo ?? "", Number(r.horas) || 0))}</td>
+                                  <td className="px-4 py-2 font-mono text-slate-700">{fmtCOP(Number(r.costo))}</td>
                                 </tr>
                               ))}
                             </tbody>
@@ -1715,7 +1715,7 @@ export default function AcrDetailPage() {
                                     <div><span className="text-slate-400 font-semibold">{fx("Nombre", "Name")}: </span><span className="text-slate-800">{r.nombre ?? "—"}</span></div>
                                     <div><span className="text-slate-400 font-semibold">{fx("Cargo", "Position")}: </span><span className="text-slate-700">{cargoLabel(r.cargo)}</span></div>
                                     <div><span className="text-slate-400 font-semibold">{fx("Horas", "Hours")}: </span><span className="text-slate-700">{r.horas}h</span></div>
-                                    <div><span className="text-slate-400 font-semibold">{fx("Costo", "Cost")}: </span><span className="font-mono text-blue-700">{fmtCOP(calcCosto(r.cargo ?? "", Number(r.horas) || 0))}</span></div>
+                                    <div><span className="text-slate-400 font-semibold">{fx("Costo", "Cost")}: </span><span className="font-mono text-blue-700">{fmtCOP(Number(r.costo))}</span></div>
                                     {r.fecha_inicio && (
                                       <div className="col-span-2"><span className="text-slate-400 font-semibold">{fx("Período", "Period")}: </span><span className="text-slate-600">{fmtDate(r.fecha_inicio)} → {fmtDate(r.fecha_fin)}</span></div>
                                     )}
@@ -1732,7 +1732,7 @@ export default function AcrDetailPage() {
                                     <div><span className="text-slate-400 font-semibold">{fx("Nombre", "Name")}: </span><span className="text-slate-800">{r.nombre ?? "—"}</span></div>
                                     <div><span className="text-slate-400 font-semibold">{fx("Cargo", "Position")}: </span><span className="text-slate-700">{cargoLabel(r.cargo)}</span></div>
                                     <div><span className="text-slate-400 font-semibold">{fx("Horas", "Hours")}: </span><span className="text-slate-700">{r.horas}h</span></div>
-                                    <div><span className="text-slate-400 font-semibold">{fx("Costo", "Cost")}: </span><span className="font-mono text-emerald-700">{fmtCOP(calcCosto(r.cargo ?? "", Number(r.horas) || 0))}</span></div>
+                                    <div><span className="text-slate-400 font-semibold">{fx("Costo", "Cost")}: </span><span className="font-mono text-emerald-700">{fmtCOP(Number(r.costo))}</span></div>
                                     <div className="col-span-2 flex items-center gap-1.5"><span className="text-slate-400 font-semibold">{fx("Estado", "Status")}: </span>
                                       <span className={`inline-block font-semibold rounded px-1.5 py-0.5 ${
                                         r.estado === "Completado" ? "bg-emerald-100 text-emerald-700" :
