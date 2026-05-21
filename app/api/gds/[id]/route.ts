@@ -15,9 +15,9 @@ export async function GET(
   try {
     const [registro] = await sql`
       SELECT
-        id, consecutivo, fecha_documentacion, proposito,
+        id, consecutivo, fecha_documentacion, nombre_gdc, proposito,
         descripcion_cambio, cambio_planeado, tipo_cambio,
-        consecuencias, estado, created_at, updated_at
+        consecuencias, registrado_por, estado, created_at, updated_at
       FROM gds_registros
       WHERE id = ${numId}
     `;
@@ -29,7 +29,7 @@ export async function GET(
     const actividades = await sql`
       SELECT
         id, numero, actividad, fecha, responsables, recursos, impacto,
-        segu_fecha, segu_responsable, segu_evidencia,
+        segu_fecha, segu_responsable, segu_evidencia, segu_observaciones,
         segu_tiene_riesgos, segu_cuales, segu_nro_accion_mejora
       FROM gds_actividades
       WHERE gds_registro_id = ${numId}
@@ -58,11 +58,13 @@ export async function PUT(
     const body = await request.json();
     const {
       fechaDocumentacion,
+      nombreGdc,
       proposito,
       descripcionCambio,
       cambioPlaneado,
       tipoCambio,
       consecuencias,
+      registradoPor,
       estado,
       actividades = [],
     } = body;
@@ -71,11 +73,13 @@ export async function PUT(
     const [updated] = await sql`
       UPDATE gds_registros SET
         fecha_documentacion = ${fechaDocumentacion},
+        nombre_gdc          = ${nombreGdc || null},
         proposito           = ${proposito || null},
         descripcion_cambio  = ${descripcionCambio || null},
         cambio_planeado     = ${cambioPlaneado || null},
         tipo_cambio         = ${tipoCambio || null},
         consecuencias       = ${consecuencias || null},
+        registrado_por      = ${registradoPor || null},
         estado              = ${estado || 'Abierta'},
         updated_at          = now()
       WHERE id = ${numId}
@@ -95,7 +99,7 @@ export async function PUT(
         await sql`
           INSERT INTO gds_actividades (
             gds_registro_id, numero, actividad, fecha, responsables, recursos, impacto,
-            segu_fecha, segu_responsable, segu_evidencia,
+            segu_fecha, segu_responsable, segu_evidencia, segu_observaciones,
             segu_tiene_riesgos, segu_cuales, segu_nro_accion_mejora
           ) VALUES (
             ${numId}, ${i + 1},
@@ -107,6 +111,7 @@ export async function PUT(
             ${a.seguFecha || null},
             ${a.seguResponsable || null},
             ${a.seguEvidencia || null},
+            ${a.seguObservaciones || null},
             ${a.seguTieneRiesgos || null},
             ${a.seguCuales || null},
             ${a.seguNroAccionMejora || null}

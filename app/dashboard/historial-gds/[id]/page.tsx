@@ -1,11 +1,12 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Image from "next/image";
 import Header from "@/components/Header";
 import { CARGOS_NEW_SCALE } from "@/lib/cargo-scale";
 import EvidenciaUpload from "@/components/EvidenciaUpload";
+import { useNavigationGuard } from "@/lib/navigation-guard-context";
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 interface SessionData {
@@ -24,6 +25,7 @@ interface ActividadDB {
   segu_fecha: string | null;
   segu_responsable: string | null;
   segu_evidencia: string | null;
+  segu_observaciones: string | null;
   segu_tiene_riesgos: string | null;
   segu_cuales: string | null;
   segu_nro_accion_mejora: string | null;
@@ -33,11 +35,13 @@ interface RegistroDB {
   id: number;
   consecutivo: string;
   fecha_documentacion: string;
+  nombre_gdc: string | null;
   proposito: string | null;
   descripcion_cambio: string | null;
   cambio_planeado: string | null;
   tipo_cambio: string | null;
   consecuencias: string | null;
+  registrado_por: string | null;
   estado: string;
   created_at: string;
 }
@@ -51,6 +55,7 @@ interface ActividadEdit {
   seguFecha: string;
   seguResponsable: string;
   seguEvidencia: string;
+  seguObservaciones: string;
   seguTieneRiesgos: string;
   seguCuales: string;
   seguNroAccionMejora: string;
@@ -58,11 +63,13 @@ interface ActividadEdit {
 
 interface EditState {
   fechaDocumentacion: string;
+  nombreGdc: string;
   proposito: string;
   descripcionCambio: string;
   cambioPlaneado: string;
   tipoCambio: string;
   consecuencias: string;
+  registradoPor: string;
   estado: string;
   actividades: ActividadEdit[];
 }
@@ -110,6 +117,7 @@ function dbActToEdit(a: ActividadDB): ActividadEdit {
     seguFecha:           a.segu_fecha ? a.segu_fecha.slice(0, 10) : "",
     seguResponsable:     toStr(a.segu_responsable),
     seguEvidencia:       toStr(a.segu_evidencia),
+    seguObservaciones:   toStr(a.segu_observaciones),
     seguTieneRiesgos:    toStr(a.segu_tiene_riesgos),
     seguCuales:          toStr(a.segu_cuales),
     seguNroAccionMejora: toStr(a.segu_nro_accion_mejora),
@@ -118,7 +126,7 @@ function dbActToEdit(a: ActividadDB): ActividadEdit {
 
 const newActividad = (): ActividadEdit => ({
   actividad: "", fecha: "", responsables: [{ nombre: "", cargo: "" }], recursos: [], impacto: "",
-  seguFecha: "", seguResponsable: "", seguEvidencia: "",
+  seguFecha: "", seguResponsable: "", seguEvidencia: "", seguObservaciones: "",
   seguTieneRiesgos: "", seguCuales: "", seguNroAccionMejora: "",
 });
 
@@ -133,6 +141,7 @@ function StatusBadge({ status }: { status: string }) {
   const map: Record<string, string> = {
     Abierta:          "bg-amber-100 text-amber-700 border-amber-200",
     "En seguimiento": "bg-blue-100 text-blue-700 border-blue-200",
+    Parcial:          "bg-blue-100 text-blue-700 border-blue-200",
     Cerrada:          "bg-emerald-100 text-emerald-700 border-emerald-200",
   };
   return (
@@ -248,6 +257,8 @@ export default function GdsDetailPage() {
   const [session,              setSession]              = useState<SessionData | null>(null);
 
   const isAdmin = session?.role === "admin";
+  const { setGuard } = useNavigationGuard();
+  const pendingProceedRef = useRef<(() => void) | null>(null);
 
   // ── Fetch ────────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -289,11 +300,13 @@ export default function GdsDetailPage() {
     if (!registro) return;
     const editState: EditState = {
       fechaDocumentacion: registro.fecha_documentacion.slice(0, 10),
+      nombreGdc:          toStr(registro.nombre_gdc),
       proposito:          toStr(registro.proposito),
       descripcionCambio:  toStr(registro.descripcion_cambio),
       cambioPlaneado:     toStr(registro.cambio_planeado),
       tipoCambio:         toStr(registro.tipo_cambio),
       consecuencias:      toStr(registro.consecuencias),
+      registradoPor:      toStr(registro.registrado_por),
       estado:             registro.estado,
       actividades:        actividades.length > 0 ? actividades.map(dbActToEdit) : [newActividad()],
     };
@@ -377,11 +390,13 @@ export default function GdsDetailPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           fechaDocumentacion: edit.fechaDocumentacion,
+          nombreGdc:          edit.nombreGdc || null,
           proposito:          edit.proposito || null,
           descripcionCambio:  edit.descripcionCambio || null,
           cambioPlaneado:     edit.cambioPlaneado || null,
           tipoCambio:         edit.tipoCambio || null,
           consecuencias:      edit.consecuencias || null,
+          registradoPor:      edit.registradoPor || null,
           estado:             edit.estado,
           actividades:        edit.actividades.map((a) => {
             const filled = a.responsables.filter((r) => r.nombre.trim() || r.cargo.trim());
@@ -442,22 +457,53 @@ export default function GdsDetailPage() {
   };
 
   const handleExitWithoutSaving = () => {
-    if (pendingExitAction === "cancel") { closeEditMode(); return; }
-    setShowExitConfirmModal(false);
-    setPendingExitAction(null);
-    router.back();
+    const proceed = pendingProceedRef.current;
+    pendingProceedRef.current = null;
+    const action = pendingExitAction;
+    closeEditMode();
+    if (proceed) {
+      proceed();
+    } else if (action !== "cancel") {
+      router.back();
+    }
   };
 
   const handleSaveAndExit = async () => {
     await handleSave();
     if (!saveError) {
-      if (pendingExitAction === "back") router.back();
+      const proceed = pendingProceedRef.current;
+      pendingProceedRef.current = null;
+      const action = pendingExitAction;
       setShowExitConfirmModal(false);
       setPendingExitAction(null);
+      if (proceed) {
+        proceed();
+      } else if (action === "back") {
+        router.back();
+      }
     }
   };
 
-  // ── Delete ───────────────────────────────────────────────────────────────
+  // ── Navigation guard (intercepts sidebar links while editing) ───────────
+  useEffect(() => {
+    if (isEditing && hasUnsavedChanges) {
+      setGuard((_href, proceed) => {
+        pendingProceedRef.current = proceed;
+        setShowExitConfirmModal(true);
+      });
+    } else {
+      setGuard(null);
+    }
+    return () => { setGuard(null); };
+  }, [isEditing, hasUnsavedChanges, setGuard]);
+
+  // ── beforeunload (browser refresh / tab close) ───────────────────────────
+  useEffect(() => {
+    if (!isEditing || !hasUnsavedChanges) return;
+    const handler = (e: BeforeUnloadEvent) => { e.preventDefault(); };
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, [isEditing, hasUnsavedChanges]);
   const handleDelete = async () => {
     if (!deleteReason.trim()) { setDeleteError("Debes indicar la razón de eliminación."); return; }
     setDeleting(true);
@@ -517,7 +563,7 @@ export default function GdsDetailPage() {
         />
       </div>
 
-      <main className="flex-1 p-4 sm:p-6 max-w-5xl mx-auto w-full space-y-5">
+      <main className="flex-1 p-4 sm:p-6 max-w-6xl mx-auto w-full space-y-5">
 
         {/* ── Toolbar ─────────────────────────────────────────────────────── */}
         <div className="no-print flex items-center justify-between gap-3 flex-wrap">
@@ -643,12 +689,14 @@ export default function GdsDetailPage() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
                   <ReadField label="Consecutivo"            value={registro.consecutivo} />
                   <ReadField label="Fecha documentación"    value={fmtDate(registro.fecha_documentacion)} />
+                  <ReadField label="Nombre de la GDC"       value={registro.nombre_gdc} />
                   <ReadField label="Estado"                 value={registro.estado} />
                   <ReadField label="¿Cambio planeado?"      value={registro.cambio_planeado} />
                   <ReadField label="Tipo de cambio"         value={registro.tipo_cambio} />
                   <ReadField label="Propósito"              value={registro.proposito} />
                   <ReadField label="Descripción del cambio" value={registro.descripcion_cambio} />
                   <ReadField label="Consecuencias"          value={registro.consecuencias} />
+                  <ReadField label="Registrado por"         value={registro.registrado_por} />
                 </div>
               </SectionCard>
 
@@ -717,6 +765,7 @@ export default function GdsDetailPage() {
                               )}
                             </div>
                             <ReadField label="¿Tiene riesgos?"      value={a.segu_tiene_riesgos} />
+                            <ReadField label="Observaciones"        value={a.segu_observaciones} />
                             <ReadField label="¿Cuáles riesgos?"     value={a.segu_cuales} />
                             <ReadField label="N.º Acción de mejora" value={a.segu_nro_accion_mejora} />
                           </div>
@@ -740,10 +789,16 @@ export default function GdsDetailPage() {
                       onChange={(e) => setField("fechaDocumentacion", e.target.value)} />
                   </div>
                   <div>
+                    <label className={labelCls}>Nombre de la GDC</label>
+                    <input type="text" className={inputCls} placeholder="Nombre o título del cambio..." value={edit.nombreGdc}
+                      onChange={(e) => setField("nombreGdc", e.target.value)} />
+                  </div>
+                  <div>
                     <label className={labelCls}>Estado</label>
                     <select className={inputCls} value={edit.estado}
                       onChange={(e) => setField("estado", e.target.value)}>
                       <option>Abierta</option>
+                      <option>Parcial</option>
                       <option>Cerrada</option>
                     </select>
                   </div>
@@ -779,6 +834,11 @@ export default function GdsDetailPage() {
                     <label className={labelCls}>Consecuencias</label>
                     <textarea rows={2} className={inputCls} value={edit.consecuencias}
                       onChange={(e) => setField("consecuencias", e.target.value)} />
+                  </div>
+                  <div>
+                    <label className={labelCls}>Registrado por</label>
+                    <input type="text" className={inputCls} placeholder="Nombre de quien registra la GDC" value={edit.registradoPor}
+                      onChange={(e) => setField("registradoPor", e.target.value)} />
                   </div>
                 </div>
               </SectionCard>
@@ -899,6 +959,7 @@ export default function GdsDetailPage() {
                                   <select className={inputCls} value={r.cargo}
                                     onChange={(e) => updateActResponsable(i, ri, "cargo", e.target.value)}>
                                     <option value="">Seleccionar cargo...</option>
+                                    <option value="Todos los procesos">Todos los procesos</option>
                                     {CARGOS_NEW_SCALE.map((c) => (
                                       <option key={c.cargo} value={c.cargo}>{c.cargo}</option>
                                     ))}
@@ -950,6 +1011,12 @@ export default function GdsDetailPage() {
                               onChange={(url) => setActField(i, "seguEvidencia", url)}
                               maxFiles={5}
                             />
+                          </div>
+                          <div>
+                            <label className={labelCls}>Observaciones</label>
+                            <textarea rows={2} className={inputCls} placeholder="Observaciones adicionales sobre el seguimiento..."
+                              value={a.seguObservaciones}
+                              onChange={(e) => setActField(i, "seguObservaciones", e.target.value)} />
                           </div>
                           <div>
                             <label className={labelCls}>¿Tiene riesgos?</label>

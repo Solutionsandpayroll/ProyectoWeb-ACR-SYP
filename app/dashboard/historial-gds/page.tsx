@@ -5,12 +5,13 @@ import Link from "next/link";
 import Header from "@/components/Header";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
-type GdsEstado = "Abierta" | "Cerrada";
+type GdsEstado = "Abierta" | "Parcial" | "Cerrada";
 
 interface GdsRecord {
   id: number;
   consecutivo: string;
   fecha_documentacion: string;
+  nombre_gdc: string | null;
   proposito: string | null;
   descripcion_cambio: string | null;
   cambio_planeado: string | null;
@@ -31,8 +32,9 @@ const fmtDate = (iso: string) =>
 // ─── Sub-components ───────────────────────────────────────────────────────────
 function StatusBadge({ status }: { status: GdsEstado }) {
   const map: Record<GdsEstado, string> = {
-    Abierta: "bg-amber-100 text-amber-700 border-amber-200",
-    Cerrada: "bg-emerald-100 text-emerald-700 border-emerald-200",
+    Abierta:  "bg-amber-100 text-amber-700 border-amber-200",
+    Parcial:  "bg-blue-100 text-blue-700 border-blue-200",
+    Cerrada:  "bg-emerald-100 text-emerald-700 border-emerald-200",
   };
   return (
     <span
@@ -141,8 +143,9 @@ export default function HistorialGdsPage() {
   const base = filterAnio === "Todos"
     ? records
     : records.filter((r) => String(new Date(r.fecha_documentacion).getFullYear()) === filterAnio);
-  const totalAbierta = base.filter((r) => r.estado === "Abierta").length;
-  const totalCerrada  = base.filter((r) => r.estado === "Cerrada").length;
+  const totalAbierta  = base.filter((r) => r.estado === "Abierta").length;
+  const totalParcial   = base.filter((r) => r.estado === "Parcial").length;
+  const totalCerrada   = base.filter((r) => r.estado === "Cerrada").length;
 
   return (
     <div className="flex flex-col flex-1">
@@ -154,19 +157,20 @@ export default function HistorialGdsPage() {
       <main className="flex-1 p-4 sm:p-6 space-y-6">
 
         {/* ── Summary cards ──────────────────────────────────────────────── */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           {[
             {
               label: filterAnio === "Todos" ? "Total registros" : `Total ${filterAnio}`,
               value: loading ? "—" : base.length,
               color: "text-slate-800",
             },
-            { label: "Abiertas", value: loading ? "—" : totalAbierta, color: "text-amber-600" },
-            { label: "Cerradas", value: loading ? "—" : totalCerrada, color: "text-emerald-600" },
+            { label: "Abiertas",  value: loading ? "—" : totalAbierta, color: "text-amber-600" },
+            { label: "Parciales", value: loading ? "—" : totalParcial, color: "text-blue-600" },
+            { label: "Cerradas",  value: loading ? "—" : totalCerrada, color: "text-emerald-600" },
           ].map(({ label, value, color }) => (
-            <div key={label} className="bg-white rounded-xl border border-slate-200 shadow-sm px-5 py-4">
-              <p className="text-xs text-slate-500 font-medium mb-1">{label}</p>
-              <p className={`text-lg font-bold ${color}`}>
+            <div key={label} className="bg-white rounded-xl border border-slate-200 shadow-sm px-3 py-3">
+              <p className="text-xs text-slate-500 font-medium mb-0.5">{label}</p>
+              <p className={`text-base font-bold ${color}`}>
                 {loading
                   ? <span className="inline-block w-16 h-5 bg-slate-200 animate-pulse rounded" />
                   : value}
@@ -234,7 +238,7 @@ export default function HistorialGdsPage() {
 
           {/* Estado pills */}
           <div className="flex gap-2 shrink-0 flex-wrap">
-            {(["Todos", "Abierta", "Cerrada"] as const).map((s) => (
+            {(["Todos", "Abierta", "Parcial", "Cerrada"] as const).map((s) => (
               <button
                 key={s}
                 onClick={() => setFilterEstado(s)}
@@ -331,7 +335,7 @@ export default function HistorialGdsPage() {
                     Consecutivo
                   </th>
                   <th className="text-left px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">
-                    Propósito / Descripción
+                    Nombre GDC
                   </th>
                   <th className="text-left px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide hidden md:table-cell">
                     Tipo cambio
@@ -389,10 +393,10 @@ export default function HistorialGdsPage() {
                     </td>
                     <td className="px-5 py-3.5 max-w-xs">
                       <p className="font-medium text-slate-800 text-sm truncate">
-                        {r.proposito ?? <span className="text-slate-400 italic">Sin propósito</span>}
+                        {r.nombre_gdc ?? <span className="text-slate-400 italic">Sin nombre asignado</span>}
                       </p>
-                      {r.descripcion_cambio && (
-                        <p className="text-xs text-slate-400 mt-0.5 truncate">{r.descripcion_cambio}</p>
+                      {r.proposito && (
+                        <p className="text-xs text-slate-400 mt-0.5 truncate">{r.proposito}</p>
                       )}
                     </td>
                     <td className="px-5 py-3.5 text-xs text-slate-600 hidden md:table-cell">

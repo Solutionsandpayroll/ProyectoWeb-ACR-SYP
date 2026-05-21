@@ -1,6 +1,7 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import Sidebar from "@/components/Sidebar";
+import DashboardProvider from "@/components/DashboardProvider";
 import { AUTH_COOKIE_NAME, parseSession } from "@/lib/auth";
 
 export default async function DashboardLayout({
@@ -16,14 +17,16 @@ export default async function DashboardLayout({
   }
 
   return (
-    <div className="flex min-h-screen bg-slate-100 overflow-x-hidden">
-      <div className="no-print">
-        <Sidebar />
+    <DashboardProvider>
+      <div className="flex min-h-screen bg-slate-100 overflow-x-hidden">
+        <div className="no-print">
+          <Sidebar />
+        </div>
+        {/* Main content — offset by sidebar width */}
+        <div className="flex-1 min-w-0 md:ml-72 print:ml-0 flex flex-col min-h-screen">
+          {children}
+        </div>
       </div>
-      {/* Main content — offset by sidebar width */}
-      <div className="flex-1 min-w-0 md:ml-72 print:ml-0 flex flex-col min-h-screen">
-        {children}
-      </div>
-    </div>
+    </DashboardProvider>
   );
 }

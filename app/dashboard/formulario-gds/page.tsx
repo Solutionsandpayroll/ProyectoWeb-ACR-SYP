@@ -57,6 +57,7 @@ interface ActividadPlan {
   seguFecha: string;
   seguResponsable: string;
   seguEvidencia: string;
+  seguObservaciones: string;
   seguTieneRiesgos: string;
   seguCuales: string;
   seguNroAccionMejora: string;
@@ -71,6 +72,7 @@ const newActividad = (): ActividadPlan => ({
   seguFecha: "",
   seguResponsable: "",
   seguEvidencia: "",
+  seguObservaciones: "",
   seguTieneRiesgos: "",
   seguCuales: "",
   seguNroAccionMejora: "",
@@ -92,11 +94,13 @@ export default function FormularioGdsPage() {
   // ── Section 1 — Información General ──
   const [info, setInfo] = useState({
     fechaDocumentacion: today,
+    nombreGdc: "",
     proposito: "",
     descripcionCambio: "",
     cambioPlaneado: "",
     tipoCambio: "",
     consecuencias: "",
+    registradoPor: "",
   });
 
   const setInfoField = (key: string, value: string) =>
@@ -160,7 +164,7 @@ export default function FormularioGdsPage() {
   const [submitError, setSubmitError] = useState<string | null>(null);
 
   const resetForm = () => {
-    setInfo({ fechaDocumentacion: today, proposito: "", descripcionCambio: "", cambioPlaneado: "", tipoCambio: "", consecuencias: "" });
+    setInfo({ fechaDocumentacion: today, nombreGdc: "", proposito: "", descripcionCambio: "", cambioPlaneado: "", tipoCambio: "", consecuencias: "", registradoPor: "" });
     setActividades([newActividad()]);
     fetch("/api/gds/next-consecutive")
       .then((r) => r.json())
@@ -178,11 +182,13 @@ export default function FormularioGdsPage() {
         body: JSON.stringify({
           consecutivo,
           fechaDocumentacion: info.fechaDocumentacion,
+          nombreGdc: info.nombreGdc || null,
           proposito: info.proposito || null,
           descripcionCambio: info.descripcionCambio || null,
           cambioPlaneado: info.cambioPlaneado || null,
           tipoCambio: info.tipoCambio || null,
           consecuencias: info.consecuencias || null,
+          registradoPor: info.registradoPor || null,
           actividades: actividades.map((a) => {
             const filled = a.responsables.filter((r) => r.nombre.trim() || r.cargo.trim());
             return {
@@ -227,6 +233,18 @@ export default function FormularioGdsPage() {
                 className={inputCls}
                 value={info.fechaDocumentacion}
                 onChange={(e) => setInfoField("fechaDocumentacion", e.target.value)}
+              />
+            </div>
+
+            {/* Nombre de la GDC */}
+            <div>
+              <label className={labelCls}>Nombre de la GDC</label>
+              <input
+                type="text"
+                className={inputCls}
+                placeholder="Nombre o título del cambio..."
+                value={info.nombreGdc}
+                onChange={(e) => setInfoField("nombreGdc", e.target.value)}
               />
             </div>
 
@@ -291,6 +309,18 @@ export default function FormularioGdsPage() {
                 placeholder="Describe las consecuencias esperadas o identificadas de este cambio..."
                 value={info.consecuencias}
                 onChange={(e) => setInfoField("consecuencias", e.target.value)}
+              />
+            </div>
+
+            {/* Registrado por */}
+            <div>
+              <label className={labelCls}>Registrado por</label>
+              <input
+                type="text"
+                className={inputCls}
+                placeholder="Nombre de quien registra la GDC"
+                value={info.registradoPor}
+                onChange={(e) => setInfoField("registradoPor", e.target.value)}
               />
             </div>
           </div>
@@ -485,6 +515,7 @@ export default function FormularioGdsPage() {
                                     onChange={(e) => updateResponsable(i, ri, "cargo", e.target.value)}
                                   >
                                     <option value="">Seleccionar cargo...</option>
+                                    <option value="Todos los procesos">Todos los procesos</option>
                                     {CARGOS_NEW_SCALE.map((c) => (
                                       <option key={c.cargo} value={c.cargo}>{c.cargo}</option>
                                     ))}
@@ -539,6 +570,18 @@ export default function FormularioGdsPage() {
                         <EvidenciaUpload
                           value={act.seguEvidencia}
                           onChange={(url) => updateActividad(i, "seguEvidencia", url)}
+                          maxFiles={5}
+                        />
+                      </div>
+
+                      <div>
+                        <label className={labelCls}>Observaciones</label>
+                        <textarea
+                          rows={2}
+                          className={inputCls}
+                          placeholder="Observaciones adicionales sobre el seguimiento..."
+                          value={act.seguObservaciones}
+                          onChange={(e) => updateActividad(i, "seguObservaciones", e.target.value)}
                         />
                       </div>
 

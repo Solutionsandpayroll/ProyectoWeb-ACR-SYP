@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import Image from "next/image";
 import { useState, useEffect } from "react";
+import { useNavigationGuard } from "@/lib/navigation-guard-context";
 
 interface SessionData {
   displayName: string;
@@ -158,6 +159,7 @@ export default function Sidebar() {
 
   const isAdmin = session?.role === "admin";
   const sectionTitle = activeModule === "gds" ? "Gestión GDC" : activeModule === "acr" ? "Gestión ACR" : "Módulos";
+  const { checkAndNavigate } = useNavigationGuard();
 
   useEffect(() => {
     setMounted(true);
@@ -460,7 +462,11 @@ export default function Sidebar() {
                   }}
                   onMouseEnter={() => setHoveredHref(item.href)}
                   onMouseLeave={() => setHoveredHref(null)}
-                  onClick={() => setMobileOpen(false)}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    setMobileOpen(false);
+                    checkAndNavigate(item.href, () => router.push(item.href));
+                  }}
                 >
                   {/* Active left bar */}
                   <span

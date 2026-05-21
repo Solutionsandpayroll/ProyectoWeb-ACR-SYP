@@ -9,11 +9,13 @@ export async function GET() {
         r.id,
         r.consecutivo,
         r.fecha_documentacion,
+        r.nombre_gdc,
         r.proposito,
         r.descripcion_cambio,
         r.cambio_planeado,
         r.tipo_cambio,
         r.consecuencias,
+        r.registrado_por,
         r.estado,
         r.created_at
       FROM gds_registros r
@@ -33,11 +35,13 @@ export async function POST(request: NextRequest) {
     const {
       consecutivo,
       fechaDocumentacion,
+      nombreGdc,
       proposito,
       descripcionCambio,
       cambioPlaneado,
       tipoCambio,
       consecuencias,
+      registradoPor,
       actividades = [],
     } = body;
 
@@ -53,20 +57,24 @@ export async function POST(request: NextRequest) {
       INSERT INTO gds_registros (
         consecutivo,
         fecha_documentacion,
+        nombre_gdc,
         proposito,
         descripcion_cambio,
         cambio_planeado,
         tipo_cambio,
         consecuencias,
+        registrado_por,
         estado
       ) VALUES (
         ${consecutivo},
         ${fechaDocumentacion},
+        ${nombreGdc || null},
         ${proposito || null},
         ${descripcionCambio || null},
         ${cambioPlaneado || null},
         ${tipoCambio || null},
         ${consecuencias || null},
+        ${registradoPor || null},
         'Abierta'
       )
       RETURNING id, consecutivo
@@ -88,6 +96,7 @@ export async function POST(request: NextRequest) {
             segu_fecha,
             segu_responsable,
             segu_evidencia,
+            segu_observaciones,
             segu_tiene_riesgos,
             segu_cuales,
             segu_nro_accion_mejora
@@ -102,6 +111,7 @@ export async function POST(request: NextRequest) {
             ${a.seguFecha || null},
             ${a.seguResponsable || null},
             ${a.seguEvidencia || null},
+            ${a.seguObservaciones || null},
             ${a.seguTieneRiesgos || null},
             ${a.seguCuales || null},
             ${a.seguNroAccionMejora || null}
