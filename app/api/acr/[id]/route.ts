@@ -289,6 +289,7 @@ export async function PUT(
       `;
       for (let k = 0; k < (act.responsables ?? []).length; k++) {
         const r = act.responsables[k];
+        const estadoActividad = r.estadoSeguimiento ?? 'Abierta';
         await sql`
           INSERT INTO responsables_plan
             (actividad_plan_id, tipo, nombre, cargo, horas, fecha_inicio, fecha_fin, costo, estado)
@@ -297,7 +298,7 @@ export async function PUT(
              ${r.nombreEjecucion      ?? null}, ${r.cargoEjecucion      ?? null},
              ${toSafeNumber(r.horasEjecucion)},
              ${r.fechaInicioEjecucion ?? null}, ${r.fechaFinEjecucion   ?? null},
-             ${toSafeNumber(r.costoEjecucion)},    'Abierta')
+             ${toSafeNumber(r.costoEjecucion)},    ${estadoActividad})
         `;
         await sql`
           INSERT INTO responsables_plan
@@ -307,7 +308,7 @@ export async function PUT(
              ${r.nombreSeguimiento ?? null}, ${r.cargoSeguimiento ?? null},
              ${toSafeNumber(r.horasSeguimiento)},
              ${r.fechaSeguimiento  ?? null}, ${r.fechaSeguimiento  ?? null},
-             ${toSafeNumber(r.costoSeguimiento)},   ${r.estadoSeguimiento ?? 'Abierta'})
+             ${toSafeNumber(r.costoSeguimiento)},   ${estadoActividad})
         `;
       }
     }

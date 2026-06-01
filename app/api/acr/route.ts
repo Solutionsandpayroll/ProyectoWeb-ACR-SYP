@@ -153,6 +153,7 @@ export async function POST(request: NextRequest) {
       // Each responsable row has both ejecucion and seguimiento data
       for (let k = 0; k < (act.responsables ?? []).length; k++) {
         const r = act.responsables[k];
+        const estadoActividad = r.estadoSeguimiento ?? 'Abierta';
 
         // Ejecución row
         await sql`
@@ -163,7 +164,7 @@ export async function POST(request: NextRequest) {
             ${r.nombreEjecucion    ?? null}, ${r.cargoEjecucion    ?? null},
             ${toSafeNumber(r.horasEjecucion)},
             ${r.fechaInicioEjecucion ?? null}, ${r.fechaFinEjecucion ?? null},
-            ${toSafeNumber(r.costoEjecucion)}, 'Abierta'
+            ${toSafeNumber(r.costoEjecucion)}, ${estadoActividad}
           )
         `;
 
@@ -176,7 +177,7 @@ export async function POST(request: NextRequest) {
             ${r.nombreSeguimiento   ?? null}, ${r.cargoSeguimiento   ?? null},
             ${toSafeNumber(r.horasSeguimiento)},
             ${r.fechaSeguimiento    ?? null}, ${r.fechaSeguimiento   ?? null},
-            ${toSafeNumber(r.costoSeguimiento)}, ${r.estadoSeguimiento  ?? 'Abierta'}
+            ${toSafeNumber(r.costoSeguimiento)}, ${estadoActividad}
           )
         `;
       }
