@@ -118,9 +118,14 @@ DATABASE_URL=postgresql://...
 # Vercel Blob
 BLOB_READ_WRITE_TOKEN=vercel_blob_rw_...
 
-# Email (Gmail SMTP)
-EMAIL_USER=correo@gmail.com
-EMAIL_PASS=app_password_de_gmail
+# Email (Outlook / Microsoft 365 SMTP)
+OUTLOOK_SMTP_HOST=smtp.office365.com
+OUTLOOK_SMTP_PORT=587
+OUTLOOK_SMTP_SECURE=false
+OUTLOOK_SMTP_USER=noreply@solutionsandpayroll.com
+OUTLOOK_SMTP_PASS=tu_credencial_smtp
+OUTLOOK_SMTP_FROM_NAME=Solutions & Payroll
+OUTLOOK_SMTP_FROM_ADDRESS=noreply@solutionsandpayroll.com
 
 # Cron (token secreto para los endpoints de notificación)
 CRON_SECRET=tu_clave_secreta

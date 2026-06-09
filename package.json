@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test:outlook-smtp": "node ./scripts/test-outlook-smtp.js"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.0.2",
