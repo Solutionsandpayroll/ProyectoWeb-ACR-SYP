@@ -102,9 +102,15 @@ export async function POST(req: NextRequest) {
       const errors: string[] = [];
 
       const cierreEstimado = acr.cierre_estimado
-        ? new Date(acr.cierre_estimado).toLocaleDateString('es-CO', {
-            day: '2-digit', month: '2-digit', year: 'numeric',
-          })
+        ? (() => {
+            const match = String(acr.cierre_estimado).match(/^(\d{4})-(\d{2})-(\d{2})/);
+            if (!match) return null;
+            const d = new Date(+match[1], +match[2] - 1, +match[3]);
+            if (isNaN(d.getTime())) return null;
+            return d.toLocaleDateString('es-CO', {
+              day: '2-digit', month: '2-digit', year: 'numeric',
+            });
+          })()
         : null;
 
       const acrUrl = `${appUrl}/dashboard/historial-acr/${acr.id}`;

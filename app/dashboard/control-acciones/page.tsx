@@ -417,7 +417,7 @@ export default function ControlAccionesPage() {
                       <tr key={row.id} className={`border-b border-slate-100 hover:bg-slate-50 transition-colors ${i % 2 === 0 ? "" : "bg-slate-50/40"}`}>
                         {/* No. */}
                         <td className="px-4 py-3 font-mono text-xs text-slate-400 font-semibold whitespace-nowrap">
-                          {String(pageStartIndex + i + 1).padStart(3, "0")}
+                          {row.consecutivo}
                         </td>
                         {/* Tipo */}
                         <td className="px-4 py-3 whitespace-nowrap">

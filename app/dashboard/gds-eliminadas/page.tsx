@@ -22,7 +22,11 @@ interface SessionData {
 
 const fmtDate = (d: string | null): string => {
   if (!d) return "—";
-  return new Date(d).toLocaleDateString("es-ES", {
+  const match = d.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (!match) return "—";
+  const date = new Date(+match[1], +match[2] - 1, +match[3]);
+  if (isNaN(date.getTime())) return "—";
+  return date.toLocaleDateString("es-ES", {
     day: "2-digit",
     month: "2-digit",
     year: "numeric",
