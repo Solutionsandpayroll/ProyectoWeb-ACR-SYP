@@ -201,6 +201,9 @@ export default async function DashboardPage({
                       {(() => {
                         const raw = acr.fecha_registro ?? acr.fecha_apertura;
                         if (!raw) return "—";
+                        if (typeof raw !== 'string') {
+                          return (raw as Date).toLocaleDateString('es-CO', { day: '2-digit', month: '2-digit', year: 'numeric' });
+                        }
                         const match = raw.match(/^(\d{4})-(\d{2})-(\d{2})/);
                         if (!match) return "—";
                         return new Date(+match[1], +match[2] - 1, +match[3])
