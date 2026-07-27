@@ -198,7 +198,14 @@ export default async function DashboardPage({
                       <StatusBadge status={acr.estado as "Abierta" | "Cerrada" | "Parcial"} />
                     </td>
                     <td className="px-5 py-3.5 text-right text-slate-700 font-medium hidden lg:table-cell">
-                      {new Date(acr.fecha_registro ?? acr.fecha_apertura).toLocaleDateString('es-CO', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+                      {(() => {
+                        const raw = acr.fecha_registro ?? acr.fecha_apertura;
+                        if (!raw) return "—";
+                        const match = raw.match(/^(\d{4})-(\d{2})-(\d{2})/);
+                        if (!match) return "—";
+                        return new Date(+match[1], +match[2] - 1, +match[3])
+                          .toLocaleDateString('es-CO', { day: '2-digit', month: '2-digit', year: 'numeric' });
+                      })()}
                     </td>
                   </tr>
                 ))}

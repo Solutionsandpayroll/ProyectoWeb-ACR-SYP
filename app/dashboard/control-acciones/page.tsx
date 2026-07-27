@@ -33,18 +33,24 @@ interface ControlRow {
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
+const parseDateSafe = (d: string | null) => {
+  if (!d) return null;
+  const match = d.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (!match) return null;
+  return new Date(+match[1], +match[2] - 1, +match[3]);
+};
+
 const fmtDate = (d: string | null) => {
-  if (!d) return "—";
-  const dt = new Date(d);
-  if (isNaN(dt.getTime())) return "—";
+  const dt = parseDateSafe(d);
+  if (!dt) return "—";
   return dt.toLocaleDateString("es-CO", { day: "2-digit", month: "2-digit", year: "numeric" });
 };
 
 const toDateInputValue = (d: string | null) => {
   if (!d) return "";
-  const dt = new Date(d);
-  if (isNaN(dt.getTime())) return "";
-  return dt.toISOString().split('T')[0]; // Convert to YYYY-MM-DD
+  const match = d.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (match) return `${match[1]}-${match[2]}-${match[3]}`;
+  return "";
 };
 
 const estadoColor = (estado: string) => {

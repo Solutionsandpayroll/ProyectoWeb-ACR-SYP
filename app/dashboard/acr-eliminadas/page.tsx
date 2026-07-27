@@ -25,7 +25,9 @@ interface SessionData {
 
 const fmtDate = (d: string | null): string => {
   if (!d) return "—";
-  const date = new Date(d);
+  const match = d.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (!match) return "—";
+  const date = new Date(+match[1], +match[2] - 1, +match[3]);
   return date.toLocaleDateString("es-ES", {
     day: "2-digit",
     month: "2-digit",
