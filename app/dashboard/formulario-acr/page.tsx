@@ -92,6 +92,51 @@ const EVALUACION_RIESGO = [
   "No Aplica",
 ];
 
+const PAISES = [
+  "Colombia",
+  "Costa Rica",
+  "Panamá",
+  "Guatemala",
+  "Perú",
+];
+
+const CLIENTES_POR_PAIS: Record<string, string[]> = {
+  Colombia: [
+    "ACT&J CONSULTORES ASOCIADOS SAS","ACTION ADVERTISING AGENCY LLC","ADVANCIO, INC","BETTE BUNA BV","BUBBLE BPM INC",
+    "CLARKE, MODET & CO COLOMBIA LTDA","CLARKET MODET Y CO. PERU SAC","COMPASSION INTERNATIONAL INCORPORATED","CONSORCIO HL - A&D",
+    "CONSORCIO HL-GISAICO","CONSORCIO SK-HL","CORPORACION PUNTO AZUL","DISTRITECH","ECOHL SAS","EDRINGTON","ELEPHANT PROPERTY MANAGEMENT LLC",
+    "EMATYS INTERNATIONAL SA","EPDM COATINGS CORP","EQUUS GLOBAL EXPANSION, LLC","EUROPORTAGE","EVOLUZION TALENT S.A.S",
+    "FLEXIBLE STEEL LACING CO","FUNERARIA PARA MASCOTAS FUNERAVET SAS","GILEAD SCIENCES COLOMBIA SAS","GLOBAL BPO360","GLOBAL CS COLOMBIA SAS",
+    "GLOBAL PROJECTS SERVICES AG","GLOBAL UPSIDE LLC","H L GESTIONES Y CO SA","HEMMERSBACH GMBH & CO. KG","HL INFRAESTRUCTURAS SAS",
+    "HL INGENIEROS SA","HONG KONG YONYOU XINFUSHE CLOUD TECHNOLOGY CO., LIMITED","INVERSIONES DEL BOSQUE SOCIEDAD POR ACCIONES SIMPLIFICADA",
+    "LIVE SYSTEMS TECHNOLOGY SA","MARCO GLOBAL PAYROLL PTE LTD","MARKETING DOCTORS LLC","MINUDOC OÜ","MONICA LONDOÑO BRIGARD",
+    "NAZDAR INK TECHNOLOGIES","NEO SOLUCIONES INFORMATICAS SL","OFICINA TECNICA DE COOPERACION EMBAJADA DE ESPAÑA","ONCEHUB LTD",
+    "ORTHO CLINICAL DIAGNOSTICS  COLOMBIA","PETROBRAS COLOMBIA COMBUSTIBLES SA","PETROBRAS INTERNATIONAL BRASPETRO BV - SUCURSAL COLOMBIA",
+    "POC PHARMA LIMITED","PUNTO MEDICAL DISTRIBUCIONES SAS","REJIMETAL SAS","REMOFIRST INC","RIVERMATE","ROOT CAPITAL INC.",
+    "SAILGLOBAL TECHNOLOGY (HK) LIMITED","SINERWARE S. A. S.","SOLUCIONES AMBIENTALES SOSTENIBLES PUNTO AZUL SAS","SOLUTIONS & PAYROLL PERU",
+    "SOLUTIONS & PAYROLL PERU S.A.C","SOLUTIONS & PAYROLL, SOCIEDAD ANÓNIMA","SOLUTIONS AND PAYROLL CENTROAMERICA SOCIEDAD DE RESPONSABILIDAD LIMITADA",
+    "SOSYO PLUS BİLGİ BİLİŞİM TEKNOLOJİ DANIŞMANLIK HİZ TİC AŞ","SUNSHINE AU PAIR","TPL LOGISTICS SUPPORT SAS","ZAMBON COLOMBIA S.A."
+  ],
+  "Costa Rica": [
+    "BUBBLE BPM INC","BUTTERGLOBE PTE. LTD","EUROPORTAGE","GARANTIPLUS","REMOFIRST","RIVERMATE"
+  ],
+  Guatemala: [
+    "GLOBAL EXPANSION","HEMMERSBACH GMBH & CO. KG","Neeyamo Inc","REMOFIRST","SAFEGUARD"
+  ],
+  Panamá: [
+    "HEMMERSBACH"
+  ],
+  Perú: [
+    "CLARKE, MODET & CO. PERU S.A.C","EUROPORTAGE","HEMMERSBACH GMBH & CO. KG","REMOFIRST INC","REMOTEPASS","RIVERMATE","SG PERÚ","YONYOU"
+  ],
+};
+
+const AUTORIZADOS = [
+  "William Romero",
+  "Ricardo Arambulo",
+  "Eduard Forero",
+];
+
 const ESTADOS_ACTIVIDAD = ["Abierta", "Cerrada", "Parcial"];
 
 // ─── Types ──────────────────────────────────────────────────────────────────────
@@ -274,6 +319,7 @@ export default function FormularioAcrPage() {
     consecutivo: "",
     fuente: "",
     proceso: "",
+    pais: "",
     cliente: "",
     fechaIncidente: "",
     fechaRegistro: today,
@@ -282,10 +328,27 @@ export default function FormularioAcrPage() {
     evaluacionRiesgo: "",
     descripcion: "",
     registradoPor: "",
+    autorizadoPor: "",
   });
 
   const setInfoField = (key: string, value: string) =>
     setInfo((p) => ({ ...p, [key]: value }));
+
+  const clientesDelPais = useMemo(
+    () => info.pais ? (CLIENTES_POR_PAIS[info.pais] ?? []) : [],
+    [info.pais]
+  );
+
+  useEffect(() => {
+    if (info.pais) {
+      const clientes = CLIENTES_POR_PAIS[info.pais] ?? [];
+      if (info.cliente && !clientes.includes(info.cliente)) {
+        setInfo((p) => ({ ...p, cliente: "" }));
+      }
+    } else if (info.cliente) {
+      setInfo((p) => ({ ...p, cliente: "" }));
+    }
+  }, [info.pais]);
 
   const cargosDisponibles = useMemo(
     () => getCargosForFechaRegistro(info.fechaRegistro),
@@ -325,7 +388,6 @@ export default function FormularioAcrPage() {
     };
 
     const NOMBRES = ["Carlos Martínez", "Laura Gómez", "Andrés Pérez", "Sandra López", "Felipe Torres", "Diana Ríos"];
-    const CLIENTES = ["Distritech Colombia SAS", "Grupo Empresarial XYZ", "Inversiones Norte SAS", "Comercializadora Alianza", "Tech Solutions Ltda"];
     const DESCRIPCIONES = [
       "Se identificó un error en el proceso de liquidación de nómina que generó pagos incorrectos a 12 colaboradores del cliente, afectando la confianza en el servicio y generando reclamaciones formales.",
       "El impuesto de ICA correspondiente al segundo bimestre no fue pagado en la fecha límite debido a falta de soporte adjunto en la solicitud y ausencia de seguimiento por parte del equipo de tesorería.",
@@ -345,11 +407,15 @@ export default function FormularioAcrPage() {
     const horasEj = randInt(4, 20);
     const horasSeg = randInt(2, 10);
 
+    const paisSeleccionado = pick(PAISES);
+    const clientesPais = CLIENTES_POR_PAIS[paisSeleccionado] ?? [];
+
     setInfo({
       consecutivo,
       fuente: fuenteSeleccionada,
       proceso: procesoSeleccionado,
-      cliente: pick(CLIENTES),
+      pais: paisSeleccionado,
+      cliente: clientesPais.length > 0 ? pick(clientesPais) : "",
       fechaIncidente: dateStr(-randInt(5, 30)),
       fechaRegistro: dateStr(0),
       tipoAccion,
@@ -357,6 +423,7 @@ export default function FormularioAcrPage() {
       evaluacionRiesgo: pick(EVALUACION_RIESGO),
       descripcion: pick(DESCRIPCIONES),
       registradoPor: pick(NOMBRES),
+      autorizadoPor: pick(AUTORIZADOS),
     });
 
     setCorreccionActs([
@@ -499,6 +566,7 @@ export default function FormularioAcrPage() {
       consecutivo:      "",
       fuente:           '',
       proceso:          '',
+      pais:             '',
       cliente:          '',
       fechaIncidente:   '',
       fechaRegistro:    new Date().toISOString().split('T')[0],
@@ -507,6 +575,7 @@ export default function FormularioAcrPage() {
       evaluacionRiesgo: '',
       descripcion:      '',
       registradoPor:    '',
+      autorizadoPor:    '',
     });
     setCorreccionActs([newActividadCorreccion(), newActividadCorreccion(), newActividadCorreccion()]);
     setCausasAnalisis('');
@@ -714,6 +783,7 @@ export default function FormularioAcrPage() {
         consecutivo:      info.consecutivo,
         fuente:           info.fuente,
         proceso:          info.proceso,
+        pais:             info.pais || null,
         cliente:          info.cliente || null,
         fechaApertura:    info.fechaIncidente,
         fechaRegistro:    info.fechaRegistro,
@@ -722,6 +792,7 @@ export default function FormularioAcrPage() {
         evaluacionRiesgo: info.evaluacionRiesgo || null,
         descripcion:      info.descripcion || null,
         registradoPor:    info.registradoPor || null,
+        autorizadoPor:    info.autorizadoPor || null,
 
         // Section 2
         actividadesCorreccion: correccionActs
@@ -874,19 +945,40 @@ export default function FormularioAcrPage() {
                         ))}
                       </select>
                     </div>
+                    <div>
+                      <label className={labelCls}>Fecha de registro</label>
+                      <input className={inputCls} type="date" value={info.fechaRegistro} readOnly disabled />
+                    </div>
                   </div>
 
                   {/* Columna 2 */}
                   <div className="space-y-4">
                     <div>
-                      <label className={labelCls}>Cliente</label>
-                      <input
+                      <label className={labelCls}>País</label>
+                      <select
                         className={inputCls}
-                        type="text"
-                        placeholder="Nombre del cliente"
+                        value={info.pais}
+                        onChange={(e) => setInfoField("pais", e.target.value)}
+                      >
+                        <option value="">Seleccionar...</option>
+                        {PAISES.map((p) => (
+                          <option key={p} value={p}>{p}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className={labelCls}>Cliente</label>
+                      <select
+                        className={inputCls}
                         value={info.cliente}
                         onChange={(e) => setInfoField("cliente", e.target.value)}
-                      />
+                        disabled={!info.pais}
+                      >
+                        <option value="">{info.pais ? "Seleccionar..." : "Selecciona un país primero"}</option>
+                        {clientesDelPais.map((c) => (
+                          <option key={c} value={c}>{c}</option>
+                        ))}
+                      </select>
                     </div>
                     <div>
                       <label className={labelCls}>Fecha del incidente *</label>
@@ -899,8 +991,17 @@ export default function FormularioAcrPage() {
                       />
                     </div>
                     <div>
-                      <label className={labelCls}>Fecha de registro</label>
-                      <input className={inputCls} type="date" value={info.fechaRegistro} readOnly disabled />
+                      <label className={labelCls}>Autorizado por</label>
+                      <select
+                        className={inputCls}
+                        value={info.autorizadoPor}
+                        onChange={(e) => setInfoField("autorizadoPor", e.target.value)}
+                      >
+                        <option value="">Seleccionar...</option>
+                        {AUTORIZADOS.map((a) => (
+                          <option key={a} value={a}>{a}</option>
+                        ))}
+                      </select>
                     </div>
                   </div>
 

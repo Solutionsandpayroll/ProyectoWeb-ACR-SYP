@@ -67,6 +67,51 @@ const EVALUACION_RIESGO = [
   "No Aplica",
 ];
 
+const PAISES = [
+  "Colombia",
+  "Costa Rica",
+  "Panamá",
+  "Guatemala",
+  "Perú",
+];
+
+const CLIENTES_POR_PAIS: Record<string, string[]> = {
+  Colombia: [
+    "ACT&J CONSULTORES ASOCIADOS SAS","ACTION ADVERTISING AGENCY LLC","ADVANCIO, INC","BETTE BUNA BV","BUBBLE BPM INC",
+    "CLARKE, MODET & CO COLOMBIA LTDA","CLARKET MODET Y CO. PERU SAC","COMPASSION INTERNATIONAL INCORPORATED","CONSORCIO HL - A&D",
+    "CONSORCIO HL-GISAICO","CONSORCIO SK-HL","CORPORACION PUNTO AZUL","DISTRITECH","ECOHL SAS","EDRINGTON","ELEPHANT PROPERTY MANAGEMENT LLC",
+    "EMATYS INTERNATIONAL SA","EPDM COATINGS CORP","EQUUS GLOBAL EXPANSION, LLC","EUROPORTAGE","EVOLUZION TALENT S.A.S",
+    "FLEXIBLE STEEL LACING CO","FUNERARIA PARA MASCOTAS FUNERAVET SAS","GILEAD SCIENCES COLOMBIA SAS","GLOBAL BPO360","GLOBAL CS COLOMBIA SAS",
+    "GLOBAL PROJECTS SERVICES AG","GLOBAL UPSIDE LLC","H L GESTIONES Y CO SA","HEMMERSBACH GMBH & CO. KG","HL INFRAESTRUCTURAS SAS",
+    "HL INGENIEROS SA","HONG KONG YONYOU XINFUSHE CLOUD TECHNOLOGY CO., LIMITED","INVERSIONES DEL BOSQUE SOCIEDAD POR ACCIONES SIMPLIFICADA",
+    "LIVE SYSTEMS TECHNOLOGY SA","MARCO GLOBAL PAYROLL PTE LTD","MARKETING DOCTORS LLC","MINUDOC OÜ","MONICA LONDOÑO BRIGARD",
+    "NAZDAR INK TECHNOLOGIES","NEO SOLUCIONES INFORMATICAS SL","OFICINA TECNICA DE COOPERACION EMBAJADA DE ESPAÑA","ONCEHUB LTD",
+    "ORTHO CLINICAL DIAGNOSTICS  COLOMBIA","PETROBRAS COLOMBIA COMBUSTIBLES SA","PETROBRAS INTERNATIONAL BRASPETRO BV - SUCURSAL COLOMBIA",
+    "POC PHARMA LIMITED","PUNTO MEDICAL DISTRIBUCIONES SAS","REJIMETAL SAS","REMOFIRST INC","RIVERMATE","ROOT CAPITAL INC.",
+    "SAILGLOBAL TECHNOLOGY (HK) LIMITED","SINERWARE S. A. S.","SOLUCIONES AMBIENTALES SOSTENIBLES PUNTO AZUL SAS","SOLUTIONS & PAYROLL PERU",
+    "SOLUTIONS & PAYROLL PERU S.A.C","SOLUTIONS & PAYROLL, SOCIEDAD ANÓNIMA","SOLUTIONS AND PAYROLL CENTROAMERICA SOCIEDAD DE RESPONSABILIDAD LIMITADA",
+    "SOSYO PLUS BİLGİ BİLİŞİM TEKNOLOJİ DANIŞMANLIK HİZ TİC AŞ","SUNSHINE AU PAIR","TPL LOGISTICS SUPPORT SAS","ZAMBON COLOMBIA S.A."
+  ],
+  "Costa Rica": [
+    "BUBBLE BPM INC","BUTTERGLOBE PTE. LTD","EUROPORTAGE","GARANTIPLUS","REMOFIRST","RIVERMATE"
+  ],
+  Guatemala: [
+    "GLOBAL EXPANSION","HEMMERSBACH GMBH & CO. KG","Neeyamo Inc","REMOFIRST","SAFEGUARD"
+  ],
+  Panamá: [
+    "HEMMERSBACH"
+  ],
+  Perú: [
+    "CLARKE, MODET & CO. PERU S.A.C","EUROPORTAGE","HEMMERSBACH GMBH & CO. KG","REMOFIRST INC","REMOTEPASS","RIVERMATE","SG PERÚ","YONYOU"
+  ],
+};
+
+const AUTORIZADOS = [
+  "William Romero",
+  "Ricardo Arambulo",
+  "Eduard Forero",
+];
+
 const RECURSOS_OPTS: { value: string; icon: string }[] = [
   { value: "Financieros",  icon: "💰" },
   { value: "Tecnológicos", icon: "💻" },
@@ -97,6 +142,7 @@ interface ActPlan {
 interface ApiData {
   registro: {
     id: number; consecutivo: string; fuente: string; proceso: string;
+    pais: string | null;
     cliente: string | null; fecha_apertura: string; fecha_registro: string | null;
     tipo_accion: string; tratamiento: string | null; evaluacion_riesgo: string | null;
     descripcion: string | null; estado: string; created_at: string;
@@ -107,6 +153,8 @@ interface ApiData {
     fecha_cierre: string | null;
     responsable_cierre: string | null;
     registrado_por: string | null;
+    autorizado_por: string | null;
+    estado_autorizacion: string | null;
   };
   actividades_correccion: ActCorr[];
   causas: { inmediatas: string[]; raiz: string[] };
@@ -141,11 +189,13 @@ type PlanRespEdit = {
 type PlanActEdit = { descripcion: string; causasAsociadas: string[]; responsables: PlanRespEdit[]; evidencia: string; observaciones: string };
 
 type EditData = {
-  fuente: string; proceso: string; cliente: string;
+  fuente: string; proceso: string; pais: string; cliente: string;
   fechaApertura: string; fechaRegistro: string;
   tipoAccion: string; tratamiento: string; evaluacionRiesgo: string;
   descripcion: string; estado: string;
   registradoPor: string;
+  autorizadoPor: string;
+  estadoAutorizacion: string;
   actividadesCorreccion: CorrActEdit[];
   causasInmediatas: string[]; causasRaiz: string[];
   actividadesPlan: PlanActEdit[];
@@ -257,6 +307,7 @@ function initEditData(d: ApiData): EditData {
   return {
     fuente:          reg.fuente       ?? "",
     proceso:         reg.proceso      ?? "",
+    pais:            reg.pais         ?? "",
     cliente:         reg.cliente      ?? "",
     fechaApertura:   toInputDate(reg.fecha_apertura),
     fechaRegistro:   toInputDate(reg.fecha_registro),
@@ -266,6 +317,8 @@ function initEditData(d: ApiData): EditData {
     descripcion:     reg.descripcion  ?? "",
     estado:          reg.estado       ?? "Abierta",
     registradoPor:   reg.registrado_por ?? "",
+    autorizadoPor:   reg.autorizado_por ?? "",
+    estadoAutorizacion: reg.estado_autorizacion ?? "",
 
     actividadesCorreccion: d.actividades_correccion.length > 0
       ? d.actividades_correccion.map((a) => ({
@@ -812,6 +865,7 @@ export default function AcrDetailPage() {
       const payload = {
         fuente:           editData.fuente,
         proceso:          editData.proceso,
+        pais:             editData.pais || null,
         cliente:          editData.cliente || null,
         fechaApertura:    editData.fechaApertura,
         fechaRegistro:    editData.fechaRegistro || null,
@@ -820,6 +874,9 @@ export default function AcrDetailPage() {
         evaluacionRiesgo: editData.evaluacionRiesgo || null,
         descripcion:      editData.descripcion || null,
         estado:           editData.estado,
+        registradoPor:    editData.registradoPor || null,
+        autorizadoPor:    editData.autorizadoPor || null,
+        estadoAutorizacion: editData.estadoAutorizacion || null,
         actividadesCorreccion: editData.actividadesCorreccion
           .filter((a) => a.actividad.trim())
           .map((a) => ({
@@ -884,7 +941,6 @@ export default function AcrDetailPage() {
         eficaciaCambiosSgi:      editData.eficaciaCambiosSgi      || null,
         fechaCierre:             editData.fechaCierre || null,
         responsableCierre:       editData.responsableCierre || null,
-        registradoPor:           editData.registradoPor || null,
       };
       const res = await fetch(`/api/acr/${id}`, {
         method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload),
@@ -1188,8 +1244,34 @@ export default function AcrDetailPage() {
                   <input type="date" value={ed.fechaRegistro} className={inputCls} readOnly disabled />
                 </div>
                 <div>
+                  <label className={labelCls}>País</label>
+                  <select value={ed.pais} onChange={(e) => {
+                    const newPais = e.target.value;
+                    const clientes = CLIENTES_POR_PAIS[newPais] ?? [];
+                    const newCliente = clientes.includes(ed.cliente) ? ed.cliente : "";
+                    setED({ pais: newPais, cliente: newCliente });
+                  }} className={inputCls}>
+                    <option value="">Seleccionar...</option>
+                    {PAISES.map((p) => <option key={p} value={p}>{p}</option>)}
+                  </select>
+                </div>
+                <div>
                   <label className={labelCls}>Cliente</label>
-                  <input value={ed.cliente} onChange={(e) => setED({ cliente: e.target.value })} placeholder="—" className={inputCls} />
+                  {!ed.pais && ed.cliente ? (
+                    <input value={ed.cliente} readOnly disabled className={inputCls + " bg-slate-100 text-slate-600"} />
+                  ) : (
+                    <select
+                      value={ed.cliente}
+                      onChange={(e) => setED({ cliente: e.target.value })}
+                      disabled={!ed.pais}
+                      className={inputCls}
+                    >
+                      <option value="">{ed.pais ? "Seleccionar..." : "Selecciona un país primero"}</option>
+                      {(CLIENTES_POR_PAIS[ed.pais] ?? []).map((c) => (
+                        <option key={c} value={c}>{c}</option>
+                      ))}
+                    </select>
+                  )}
                 </div>
                 <div>
                   <label className={labelCls}>Evaluación del riesgo</label>
@@ -1201,6 +1283,22 @@ export default function AcrDetailPage() {
                 <div>
                   <label className={labelCls}>Registrado por</label>
                   <input value={ed.registradoPor} onChange={(e) => setED({ registradoPor: e.target.value })} placeholder="Nombre completo" className={inputCls} />
+                </div>
+                <div>
+                  <label className={labelCls}>Autorizado por</label>
+                  <select value={ed.autorizadoPor} onChange={(e) => setED({ autorizadoPor: e.target.value })} className={inputCls}>
+                    <option value="">Seleccionar...</option>
+                    {AUTORIZADOS.map((a) => <option key={a} value={a}>{a}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className={labelCls}>Estado de autorización</label>
+                  <select value={ed.estadoAutorizacion} onChange={(e) => setED({ estadoAutorizacion: e.target.value })} className={inputCls}>
+                    <option value="">Seleccionar...</option>
+                    <option value="Pendiente">Pendiente</option>
+                    <option value="Aprobada">Aprobada</option>
+                    <option value="Rechazada">Rechazada</option>
+                  </select>
                 </div>
                 {ed.fuente === "Salidas no conformes" && (
                   <div className="col-span-2">
@@ -1219,10 +1317,13 @@ export default function AcrDetailPage() {
                 <Field label={fx("Fecha del incidente", "Incident date")} value={fmtDate(reg.fecha_apertura)} />
                 <Field label={fx("Fecha de registro", "Registration date")} value={fmtDate(reg.fecha_registro)} />
                 <Field label={fx("Fuente", "Source")} value={tr("fuente", reg.fuente)} />
+                <Field label={fx("País", "Country")} value={reg.pais ?? undefined} />
                 <Field label={fx("Cliente", "Client")} value={tr("cliente", reg.cliente)} />
                 <Field label={fx("Tipo de acción", "Action type")} value={tr("tipoAccion", reg.tipo_accion)} />
                 <Field label={fx("Evaluación del riesgo", "Risk assessment")} value={tr("evaluacionRiesgo", reg.evaluacion_riesgo)} />
                 <Field label={fx("Registrado por", "Registered by")} value={reg.registrado_por ?? undefined} />
+                <Field label={fx("Autorizado por", "Authorized by")} value={reg.autorizado_por ?? undefined} />
+                <Field label={fx("Estado de autorización", "Authorization status")} value={reg.estado_autorizacion ?? undefined} />
                 {reg.fuente === "Salidas no conformes" && (
                   <Field label={fx("Tratamiento", "Treatment")} value={tr("tratamiento", reg.tratamiento)} />
                 )}

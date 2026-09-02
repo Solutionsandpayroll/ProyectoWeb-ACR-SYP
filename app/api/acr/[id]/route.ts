@@ -133,6 +133,7 @@ export async function PUT(
     const {
       fuente,
       proceso,
+      pais,
       cliente,
       fechaApertura,
       fechaRegistro,
@@ -141,6 +142,8 @@ export async function PUT(
       evaluacionRiesgo,
       descripcion,
       registradoPor,
+      autorizadoPor,
+      estadoAutorizacion,
       estado,
       actividadesCorreccion = [],
       causasInmediatas = [],
@@ -203,6 +206,7 @@ export async function PUT(
       UPDATE acr_registros SET
         fuente           = ${fuente        ?? null},
         proceso          = ${proceso       ?? null},
+        pais             = ${pais          ?? null},
         cliente          = ${cliente       ?? null},
         fecha_apertura   = ${fechaApertura ?? null},
         fecha_registro   = ${fechaRegistro ?? null},
@@ -211,6 +215,8 @@ export async function PUT(
         evaluacion_riesgo = ${evaluacionRiesgo ?? null},
         descripcion      = ${descripcion   ?? null},
         registrado_por   = ${registradoPor ?? null},
+        autorizado_por   = ${autorizadoPor ?? null},
+        estado_autorizacion = ${estadoAutorizacion ?? null},
         estado           = ${nextEstado},
         eficacia_accion_adecuada  = ${eficaciaAccionAdecuada  ?? null},
         eficacia_no_conformidades = ${eficaciaNoConformidades ?? null},

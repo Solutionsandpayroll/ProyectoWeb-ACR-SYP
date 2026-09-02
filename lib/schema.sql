@@ -7,6 +7,7 @@ CREATE TABLE IF NOT EXISTS acr_registros (
   consecutivo VARCHAR(20) UNIQUE NOT NULL,
   fuente VARCHAR(100) NOT NULL,
   proceso VARCHAR(100) NOT NULL,
+  pais VARCHAR(100),
   cliente VARCHAR(200),
   fecha_apertura DATE NOT NULL,
   tipo_accion VARCHAR(100) NOT NULL,
@@ -14,6 +15,8 @@ CREATE TABLE IF NOT EXISTS acr_registros (
   evaluacion_riesgo TEXT,
   descripcion TEXT,
   estado VARCHAR(50) DEFAULT 'Abierta',
+  autorizado_por VARCHAR(200),
+  estado_autorizacion VARCHAR(50),
   created_at TIMESTAMPTZ DEFAULT now(),
   updated_at TIMESTAMPTZ DEFAULT now()
 );

@@ -34,7 +34,7 @@ function StatusBadge({ status }: { status: AcrStatus }) {
 function SkeletonRow() {
   return (
     <tr className="border-b border-slate-100">
-      {[80, 180, 90, 80, 70, 100, 80].map((w, i) => (
+      {[80, 180, 80, 90, 80, 70, 100, 100, 80].map((w, i) => (
         <td key={i} className="px-5 py-4">
           <div className="h-3.5 rounded bg-slate-200 animate-pulse" style={{ width: w }} />
         </td>
@@ -280,19 +280,21 @@ export default function HistorialAcrPage() {
 
           {/* ── Top scrollbar (mirror) ─────────────────────────────── */}
           <div ref={topScrollRef} className="top-scrollbar overflow-x-scroll border-b border-slate-100">
-            <div className="min-w-225 h-px" />
+            <div className="min-w-400 h-px" />
           </div>
 
           <div ref={tableScrollRef} className="overflow-x-auto">
-            <table className="w-full text-sm min-w-225">
+            <table className="w-full text-sm min-w-400">
               <thead>
                 <tr className="bg-slate-50 border-b border-slate-200">
                   <th className="text-left px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Consecutivo</th>
                   <th className="text-left px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Proceso / Fuente</th>
+                  <th className="text-left px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide hidden md:table-cell">País</th>
                   <th className="text-left px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide hidden md:table-cell">Tipo acción</th>
                   <th className="text-left px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide hidden lg:table-cell">Cliente</th>
                   <th className="text-left px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Estado</th>
                   <th className="text-right px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide hidden lg:table-cell">Costo total</th>
+                  <th className="text-left px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide hidden xl:table-cell">Autorizado por</th>
                   <th className="text-left px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide hidden xl:table-cell">Fecha registro</th>
                   <th className="px-5 py-3"></th>
                 </tr>
@@ -305,7 +307,7 @@ export default function HistorialAcrPage() {
                 {/* Empty state */}
                 {!loading && !error && filtered.length === 0 && (
                   <tr>
-                    <td colSpan={8} className="text-center py-16">
+                    <td colSpan={10} className="text-center py-16">
                       <div className="flex flex-col items-center gap-3 text-slate-400">
                         <svg className="w-12 h-12 text-slate-200" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -337,6 +339,9 @@ export default function HistorialAcrPage() {
                       <p className="font-medium text-slate-800 text-sm">{r.proceso}</p>
                       <p className="text-xs text-slate-400 mt-0.5 truncate">{r.fuente}</p>
                     </td>
+                    <td className="px-5 py-3.5 text-xs text-slate-600 hidden md:table-cell">
+                      {r.pais ?? <span className="text-slate-300">—</span>}
+                    </td>
                     <td className="px-5 py-3.5 text-xs text-slate-600 hidden md:table-cell">{r.tipo_accion}</td>
                     <td className="px-5 py-3.5 text-xs text-slate-500 hidden lg:table-cell">
                       {r.cliente ?? <span className="text-slate-300">—</span>}
@@ -348,6 +353,9 @@ export default function HistorialAcrPage() {
                       {fmtCOP(Number(r.costo_total))
                         ? <span className="font-semibold text-slate-700 text-xs">{fmtCOP(Number(r.costo_total))}</span>
                         : <span className="text-slate-300 text-xs">—</span>}
+                    </td>
+                    <td className="px-5 py-3.5 text-xs text-slate-500 hidden xl:table-cell">
+                      {r.autorizado_por ?? <span className="text-slate-300">—</span>}
                     </td>
                     <td className="px-5 py-3.5 text-xs text-slate-500 hidden xl:table-cell whitespace-nowrap">
                       {fmtDate(r.fecha_registro ?? r.fecha_apertura)}

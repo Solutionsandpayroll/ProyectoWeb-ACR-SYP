@@ -19,6 +19,7 @@ export interface AcrRecord {
   consecutivo: string;
   fuente: string;
   proceso: string;
+  pais: string | null;
   cliente: string | null;
   fecha_apertura: string;
   fecha_registro: string | null;
@@ -26,9 +27,11 @@ export interface AcrRecord {
   evaluacion_riesgo: string | null;
   descripcion: string | null;
   estado: AcrStatus;
-  created_at: string;
+  creado_at: string;
   costo_total: number;
   registrado_por: string | null;
+  autorizado_por: string | null;
+  estado_autorizacion: string | null;
 }
 
 export interface DashboardStats {

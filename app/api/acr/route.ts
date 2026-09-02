@@ -21,6 +21,7 @@ export async function GET() {
         r.consecutivo,
         r.fuente,
         r.proceso,
+        r.pais,
         r.cliente,
         r.fecha_apertura,
         r.fecha_registro,
@@ -30,6 +31,8 @@ export async function GET() {
         r.estado,
         r.created_at,
         r.registrado_por,
+        r.autorizado_por,
+        r.estado_autorizacion,
         COALESCE(c.costo_total, 0) AS costo_total
       FROM acr_registros r
       LEFT JOIN costos_asociados c ON c.acr_id = r.id
@@ -51,6 +54,7 @@ export async function POST(request: NextRequest) {
       consecutivo,
       fuente,
       proceso,
+      pais,
       cliente,
       fechaApertura,
       fechaRegistro,
@@ -59,6 +63,7 @@ export async function POST(request: NextRequest) {
       evaluacionRiesgo,
       descripcion,
       registradoPor,
+      autorizadoPor,
       // Section 2
       actividadesCorreccion = [],
       // Section 3
@@ -81,13 +86,13 @@ export async function POST(request: NextRequest) {
     // ── Insert main record ─────────────────────────────────────────────────
     const [registro] = await sql`
       INSERT INTO acr_registros (
-        consecutivo, fuente, proceso, cliente,
+        consecutivo, fuente, proceso, pais, cliente,
         fecha_apertura, fecha_registro, tipo_accion,
-        tratamiento, evaluacion_riesgo, descripcion, registrado_por
+        tratamiento, evaluacion_riesgo, descripcion, registrado_por, autorizado_por
       ) VALUES (
-        ${consecutivo}, ${fuente}, ${proceso}, ${cliente ?? null},
+        ${consecutivo}, ${fuente}, ${proceso}, ${pais ?? null}, ${cliente ?? null},
         ${fechaApertura}, ${fechaRegistro}, ${tipoAccion},
-        ${tratamiento ?? null}, ${evaluacionRiesgo ?? null}, ${descripcion ?? null}, ${registradoPor ?? null}
+        ${tratamiento ?? null}, ${evaluacionRiesgo ?? null}, ${descripcion ?? null}, ${registradoPor ?? null}, ${autorizadoPor ?? null}
       )
       RETURNING id
     `;
