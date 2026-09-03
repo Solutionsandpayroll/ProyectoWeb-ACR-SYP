@@ -1,5 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { sql } from '@/lib/db';
+import { transporter, EMAIL_FROM } from '@/lib/email';
+import { buildAcrAprobacionPendienteHtml } from '@/lib/email-templates/acr-aprobacion-pendiente';
+
+// Mapeo de correos para autorizadores
+const AUTORIZADOR_EMAILS: Record<string, string> = {
+  'William Romero': 'wromero@solutionsandpayroll.com',
+  'Ricardo Arambulo': 'rarambulo@solutionsandpayroll.com',
+  'Eduard Forero': 'eforero@solutionsandpayroll.com',
+};
 
 const toSafeNumber = (value: unknown): number => {
   if (typeof value === 'number') return Number.isFinite(value) ? value : 0;
@@ -33,6 +42,7 @@ export async function GET() {
         r.registrado_por,
         r.autorizado_por,
         r.estado_autorizacion,
+        r.fecha_autorizacion,
         COALESCE(c.costo_total, 0) AS costo_total
       FROM acr_registros r
       LEFT JOIN costos_asociados c ON c.acr_id = r.id
@@ -84,15 +94,18 @@ export async function POST(request: NextRequest) {
     }
 
     // ── Insert main record ─────────────────────────────────────────────────
+    // Si hay autorizado_por, el estado_autorizacion se establece en "Pendiente"
+    const estadoAutorizacionInicial = autorizadoPor ? 'Pendiente' : null;
+    
     const [registro] = await sql`
       INSERT INTO acr_registros (
         consecutivo, fuente, proceso, pais, cliente,
         fecha_apertura, fecha_registro, tipo_accion,
-        tratamiento, evaluacion_riesgo, descripcion, registrado_por, autorizado_por
+        tratamiento, evaluacion_riesgo, descripcion, registrado_por, autorizado_por, estado_autorizacion
       ) VALUES (
         ${consecutivo}, ${fuente}, ${proceso}, ${pais ?? null}, ${cliente ?? null},
         ${fechaApertura}, ${fechaRegistro}, ${tipoAccion},
-        ${tratamiento ?? null}, ${evaluacionRiesgo ?? null}, ${descripcion ?? null}, ${registradoPor ?? null}, ${autorizadoPor ?? null}
+        ${tratamiento ?? null}, ${evaluacionRiesgo ?? null}, ${descripcion ?? null}, ${registradoPor ?? null}, ${autorizadoPor ?? null}, ${estadoAutorizacionInicial}
       )
       RETURNING id
     `;
@@ -223,6 +236,33 @@ export async function POST(request: NextRequest) {
         ${toSafeNumber(descuentosCliente)}, ${toSafeNumber(otrosCostos)}, ${costoTotal}
       )
     `;
+
+    // ── Enviar correo de notificación si hay autorizado_por ──────────────
+    if (autorizadoPor) {
+      const destinatario = AUTORIZADOR_EMAILS[autorizadoPor];
+      if (destinatario) {
+        const acrUrl = `https://acr.solutionsandpayroll.com/dashboard/historial-acr/${acrId}`;
+        const htmlContent = buildAcrAprobacionPendienteHtml({
+          consecutivo,
+          proceso,
+          cliente: cliente ?? '',
+          registrado_por: registradoPor ?? '',
+          autorizado_por: autorizadoPor,
+          acr_url: acrUrl,
+        });
+
+        // Enviar correo de forma asíncrona (no bloquea la respuesta)
+        // Si falla, solo se loguea el error pero el ACR ya se creó exitosamente
+        transporter.sendMail({
+          from: EMAIL_FROM,
+          to: destinatario,
+          subject: `Nueva ACR pendiente de aprobación - ${consecutivo}`,
+          html: htmlContent,
+        }).catch((emailError) => {
+          console.error('Error al enviar correo de aprobación de ACR:', emailError);
+        });
+      }
+    }
 
     return NextResponse.json({ success: true, id: acrId, consecutivo }, { status: 201 });
   } catch (error: unknown) {

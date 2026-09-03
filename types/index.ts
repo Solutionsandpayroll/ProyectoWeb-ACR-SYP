@@ -32,6 +32,7 @@ export interface AcrRecord {
   registrado_por: string | null;
   autorizado_por: string | null;
   estado_autorizacion: string | null;
+  fecha_autorizacion: string | null;
 }
 
 export interface DashboardStats {

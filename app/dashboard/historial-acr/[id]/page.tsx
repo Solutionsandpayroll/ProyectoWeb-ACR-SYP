@@ -155,6 +155,7 @@ interface ApiData {
     registrado_por: string | null;
     autorizado_por: string | null;
     estado_autorizacion: string | null;
+    fecha_autorizacion: string | null;
   };
   actividades_correccion: ActCorr[];
   causas: { inmediatas: string[]; raiz: string[] };
@@ -196,6 +197,7 @@ type EditData = {
   registradoPor: string;
   autorizadoPor: string;
   estadoAutorizacion: string;
+  fechaAutorizacion: string;
   actividadesCorreccion: CorrActEdit[];
   causasInmediatas: string[]; causasRaiz: string[];
   actividadesPlan: PlanActEdit[];
@@ -319,6 +321,7 @@ function initEditData(d: ApiData): EditData {
     registradoPor:   reg.registrado_por ?? "",
     autorizadoPor:   reg.autorizado_por ?? "",
     estadoAutorizacion: reg.estado_autorizacion ?? "",
+    fechaAutorizacion: toInputDate(reg.fecha_autorizacion),
 
     actividadesCorreccion: d.actividades_correccion.length > 0
       ? d.actividades_correccion.map((a) => ({
@@ -877,6 +880,7 @@ export default function AcrDetailPage() {
         registradoPor:    editData.registradoPor || null,
         autorizadoPor:    editData.autorizadoPor || null,
         estadoAutorizacion: editData.estadoAutorizacion || null,
+        fechaAutorizacion: editData.fechaAutorizacion || null,
         actividadesCorreccion: editData.actividadesCorreccion
           .filter((a) => a.actividad.trim())
           .map((a) => ({
@@ -1300,6 +1304,10 @@ export default function AcrDetailPage() {
                     <option value="Rechazada">Rechazada</option>
                   </select>
                 </div>
+                <div>
+                  <label className={labelCls}>Fecha de autorización</label>
+                  <input type="date" value={ed.fechaAutorizacion} onChange={(e) => setED({ fechaAutorizacion: e.target.value })} className={inputCls} />
+                </div>
                 {ed.fuente === "Salidas no conformes" && (
                   <div className="col-span-2">
                     <label className={labelCls}>Tratamiento</label>
@@ -1324,6 +1332,7 @@ export default function AcrDetailPage() {
                 <Field label={fx("Registrado por", "Registered by")} value={reg.registrado_por ?? undefined} />
                 <Field label={fx("Autorizado por", "Authorized by")} value={reg.autorizado_por ?? undefined} />
                 <Field label={fx("Estado de autorización", "Authorization status")} value={reg.estado_autorizacion ?? undefined} />
+                <Field label={fx("Fecha de autorización", "Authorization date")} value={fmtDate(reg.fecha_autorizacion)} />
                 {reg.fuente === "Salidas no conformes" && (
                   <Field label={fx("Tratamiento", "Treatment")} value={tr("tratamiento", reg.tratamiento)} />
                 )}

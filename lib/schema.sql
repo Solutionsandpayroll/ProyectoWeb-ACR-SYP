@@ -17,6 +17,7 @@ CREATE TABLE IF NOT EXISTS acr_registros (
   estado VARCHAR(50) DEFAULT 'Abierta',
   autorizado_por VARCHAR(200),
   estado_autorizacion VARCHAR(50),
+  fecha_autorizacion DATE,
   created_at TIMESTAMPTZ DEFAULT now(),
   updated_at TIMESTAMPTZ DEFAULT now()
 );
