@@ -34,6 +34,7 @@ export async function GET(req: NextRequest) {
         r.fecha_registro,
         r.proceso,
         r.fuente,
+        r.pais,
         r.cliente,
         r.estado,
         r.evaluacion_riesgo,

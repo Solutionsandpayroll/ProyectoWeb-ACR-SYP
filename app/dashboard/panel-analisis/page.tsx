@@ -104,13 +104,13 @@ function ChartCard({ title, children }: { title: string; children: React.ReactNo
   );
 }
 
-function HorizontalBar({ data, color }: { data: KV[]; color: string }) {
+function HorizontalBar({ data, color, labelWidth = "w-36" }: { data: KV[]; color: string; labelWidth?: string }) {
   const max = Math.max(...data.map((d) => d.value), 1);
   return (
     <div className="space-y-1.5 flex-1">
       {data.map((d) => (
         <div key={d.label} className="flex items-center gap-2 text-xs">
-          <span className="w-36 text-slate-600 truncate text-right shrink-0">{d.label}</span>
+          <span className={`${labelWidth} text-slate-600 truncate text-right shrink-0`} title={d.label}>{d.label}</span>
           <div className="flex-1 h-5 bg-slate-100 rounded overflow-hidden">
             <div
               className="h-full rounded transition-all"
@@ -374,8 +374,8 @@ export default function PanelAnalisisPage() {
         ══════════════════════════════════════════════════════════════════ */}
         {data && !loading && (
           <>
-            {/* ── Row 1: 3 charts ──────────────────────────────────────── */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+            {/* ── Charts grid: 2 per row ─────────────────────────────── */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
               <ChartCard title="Cantidad de acciones">
                 <ResponsiveContainer width="100%" height={220}>
                   <BarChart data={data.porTipoAccion} margin={{ top: 10, right: 10, left: -20, bottom: 40 }}>
@@ -405,14 +405,11 @@ export default function PanelAnalisisPage() {
               </ChartCard>
 
               <ChartCard title="Cantidad de ACR por cliente">
-                <HorizontalBar data={data.porCliente} color={NAVY} />
+                <HorizontalBar data={data.porCliente} color={NAVY} labelWidth="w-52" />
               </ChartCard>
-            </div>
 
-            {/* ── Row 2: donut + cost bar + table ──────────────────────── */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
               <ChartCard title="Estado de las acciones">
-                <ResponsiveContainer width="100%" height={220}>
+                <ResponsiveContainer width="100%" height={280}>
                   <PieChart>
                     <Pie
                       data={data.porEstado}
@@ -420,8 +417,8 @@ export default function PanelAnalisisPage() {
                       nameKey="label"
                       cx="50%"
                       cy="50%"
-                      innerRadius={55}
-                      outerRadius={85}
+                      innerRadius={70}
+                      outerRadius={110}
                       labelLine={false}
                       label={renderDonutLabel}
                     >

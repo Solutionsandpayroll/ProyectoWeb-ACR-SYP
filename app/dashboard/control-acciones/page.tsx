@@ -18,6 +18,7 @@ interface ControlRow {
   fecha_registro: string | null;
   proceso: string;
   fuente: string;
+  pais: string | null;
   cliente: string;
   estado: string;
   evaluacion_riesgo: string;
@@ -85,6 +86,77 @@ const parseSeguimientoResponsables = (value: string | null | undefined): string[
 const serializeSeguimientoResponsables = (items: string[]): string | null => {
   const cleaned = items.map((v) => v.trim()).filter(Boolean);
   return cleaned.length > 0 ? cleaned.join(" | ") : null;
+};
+
+const clienteConPais = (cliente: string | null | undefined, pais: string | null | undefined): string => {
+  if (!cliente) return "";
+  return pais ? `${cliente} - ${pais}` : `${cliente} - pais no asignado`;
+};
+
+// ─── CSV Export ───────────────────────────────────────────────────────────────
+const escapeCsv = (value: string | null | undefined): string => {
+  if (value == null) return "";
+  const str = String(value);
+  if (str.includes(",") || str.includes('"') || str.includes("\n") || str.includes("\r")) {
+    return `"${str.replace(/"/g, '""')}"`;
+  }
+  return str;
+};
+
+const exportCsv = (rowsToExport: ControlRow[], year: number) => {
+  const headers = [
+    "No.",
+    "Tipo",
+    "Apertura",
+    "Proceso",
+    "Resp. Proceso",
+    "Resp. Seguimiento",
+    "Fuente",
+    "Estado",
+    "Eficaz",
+    "Cierre estimado",
+    "Fecha verif. eficacia",
+    "Cliente",
+    "Observaciones",
+  ];
+
+  const csvLines = [headers.map(escapeCsv).join(",")];
+
+  for (const row of rowsToExport) {
+    const respProceso = PROCESO_RESPONSABLES[row.proceso]?.length
+      ? PROCESO_RESPONSABLES[row.proceso].join(" | ")
+      : "";
+    const respSeguimiento = row.resp_seguimiento ?? "";
+
+    const csvRow = [
+      row.consecutivo,
+      row.tipo_accion,
+      row.fecha_registro ?? "",
+      row.proceso,
+      respProceso,
+      respSeguimiento,
+      row.fuente,
+      row.estado,
+      row.eficaz ?? "",
+      row.cierre_estimado ?? "",
+      row.fecha_verificacion_eficacia ?? "",
+      clienteConPais(row.cliente, row.pais),
+      row.observaciones ?? "",
+    ];
+    csvLines.push(csvRow.map(escapeCsv).join(","));
+  }
+
+  // BOM para que Excel reconozca acentos y caracteres especiales
+  const csvContent = "\uFEFF" + csvLines.join("\r\n");
+  const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `control_acciones_${year}.csv`;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
 };
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
@@ -360,7 +432,7 @@ export default function ControlAccionesPage() {
             <span className="text-xs font-mono uppercase tracking-widest text-slate-400">
               Acciones registradas — {selectedYear}
             </span>
-            <div className="flex gap-2 flex-wrap">
+            <div className="flex gap-2 flex-wrap items-center">
               {(["all", "Abierta", "Cerrada", "Parcial"] as const).map((f) => (
                 <button
                   key={f}
@@ -374,6 +446,17 @@ export default function ControlAccionesPage() {
                   {f === "all" ? "Todos" : f}
                 </button>
               ))}
+              <button
+                onClick={() => exportCsv(filteredRows, selectedYear)}
+                disabled={loading || filteredRows.length === 0}
+                className="cursor-pointer inline-flex items-center gap-1.5 px-3 py-1 rounded text-xs font-semibold border border-emerald-600 text-emerald-700 bg-emerald-50 hover:bg-emerald-100 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                title="Exportar los registros mostrados a un archivo CSV"
+              >
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                Exportar CSV
+              </button>
             </div>
           </div>
 
@@ -585,7 +668,9 @@ export default function ControlAccionesPage() {
                         </td>
                         {/* Cliente */}
                         <td className="px-4 py-3 text-xs font-semibold text-[#105789] whitespace-nowrap">
-                          {row.cliente || "—"}
+                          {row.cliente
+                            ? clienteConPais(row.cliente, row.pais)
+                            : "—"}
                         </td>
                         {/* Observaciones — editable */}
                         <td className="px-3 py-2 min-w-48">

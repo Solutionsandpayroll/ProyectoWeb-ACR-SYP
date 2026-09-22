@@ -228,13 +228,13 @@ export async function GET(req: NextRequest) {
               GROUP BY proceso ORDER BY value DESC LIMIT 15`,
 
       yearNum !== null
-        ? sql`SELECT cliente AS label, COUNT(*)::int AS value FROM acr_registros
+        ? sql`SELECT (cliente || ' - ' || COALESCE(NULLIF(TRIM(pais), ''), 'pais no asignado')) AS label, COUNT(*)::int AS value FROM acr_registros
               WHERE cliente IS NOT NULL AND cliente <> ''
                 AND EXTRACT(YEAR FROM COALESCE(fecha_registro, created_at::date))::int = ${yearNum}
-              GROUP BY cliente ORDER BY value DESC LIMIT 15`
-        : sql`SELECT cliente AS label, COUNT(*)::int AS value FROM acr_registros
+              GROUP BY cliente, COALESCE(NULLIF(TRIM(pais), ''), 'pais no asignado') ORDER BY value DESC LIMIT 15`
+        : sql`SELECT (cliente || ' - ' || COALESCE(NULLIF(TRIM(pais), ''), 'pais no asignado')) AS label, COUNT(*)::int AS value FROM acr_registros
               WHERE cliente IS NOT NULL AND cliente <> ''
-              GROUP BY cliente ORDER BY value DESC LIMIT 15`,
+              GROUP BY cliente, COALESCE(NULLIF(TRIM(pais), ''), 'pais no asignado') ORDER BY value DESC LIMIT 15`,
 
       yearNum !== null
         ? sql`SELECT estado AS label, COUNT(*)::int AS value FROM acr_registros
