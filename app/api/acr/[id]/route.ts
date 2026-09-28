@@ -1,6 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { sql } from '@/lib/db';
 import { getRequestSession, isAdminSession } from '@/lib/auth';
+import { transporter, EMAIL_FROM } from '@/lib/email';
+import { buildAcrRechazadaHtml } from '@/lib/email-templates/acr-rechazada';
+import { buildAcrNuevaRevisionHtml } from '@/lib/email-templates/acr-nueva-revision';
+import { RESPONSABLE_EMAILS } from '@/lib/responsables';
+
+// Mapeo de correos para autorizadores (mismo que en POST)
+const AUTORIZADOR_EMAILS: Record<string, string> = {
+  'William Romero': 'wromero@solutionsandpayroll.com',
+  'Ricardo Arambulo': 'rarambulo@solutionsandpayroll.com',
+  'Eduard Forero': 'eforero@solutionsandpayroll.com',
+};
+
+// Correo de pruebas para notificaciones de rechazo y nueva revisión
+const TEST_EMAIL = 'automatizacion2@solutionsandpayroll.com';
 
 const toSafeNumber = (value: unknown): number => {
   if (typeof value === 'number') return Number.isFinite(value) ? value : 0;
@@ -145,6 +159,8 @@ export async function PUT(
       autorizadoPor,
       estadoAutorizacion,
       fechaAutorizacion,
+      notificarAutorizacion,
+      comentariosAutorizacion,
       estado,
       actividadesCorreccion = [],
       causasInmediatas = [],
@@ -160,7 +176,7 @@ export async function PUT(
     } = body;
 
     const [currentRegistro] = await sql`
-      SELECT estado, fecha_cierre, responsable_cierre
+      SELECT estado, fecha_cierre, responsable_cierre, estado_autorizacion, autorizado_por, registrado_por, cliente, proceso, consecutivo
       FROM acr_registros
       WHERE id = ${id}
     `;
@@ -219,6 +235,8 @@ export async function PUT(
         autorizado_por   = ${autorizadoPor ?? null},
         estado_autorizacion = ${estadoAutorizacion ?? null},
         fecha_autorizacion = ${fechaAutorizacion ?? null},
+        notificar_autorizacion = ${notificarAutorizacion ? true : false},
+        comentarios_autorizacion = ${comentariosAutorizacion ?? null},
         estado           = ${nextEstado},
         eficacia_accion_adecuada  = ${eficaciaAccionAdecuada  ?? null},
         eficacia_no_conformidades = ${eficaciaNoConformidades ?? null},
@@ -359,6 +377,59 @@ export async function PUT(
         otros_costos          = EXCLUDED.otros_costos,
         costo_total           = EXCLUDED.costo_total
     `;
+
+    // ── Notificaciones por cambio de estado de autorización ───────────────
+    const estadoAnterior = currentRegistro.estado_autorizacion ?? null;
+    const estadoNuevo = estadoAutorizacion ?? null;
+
+    // Obtener correos vinculados a los nombres (con fallback a TEST_EMAIL)
+    const emailRegistrador = (registradoPor ?? currentRegistro.registrado_por)
+      ? (RESPONSABLE_EMAILS[registradoPor ?? currentRegistro.registrado_por ?? ''] || TEST_EMAIL)
+      : TEST_EMAIL;
+    const emailAutorizador = (autorizadoPor ?? currentRegistro.autorizado_por)
+      ? (RESPONSABLE_EMAILS[autorizadoPor ?? currentRegistro.autorizado_por ?? ''] || TEST_EMAIL)
+      : TEST_EMAIL;
+
+    // Validación: rechazo requiere comentarios obligatorios
+    if (estadoNuevo === 'Rechazada' && estadoAnterior !== 'Rechazada' && !comentariosAutorizacion?.trim()) {
+      return NextResponse.json({ error: 'Debe proporcionar un motivo o comentario para el rechazo.' }, { status: 400 });
+    }
+
+    // Transición a "Rechazada" → notificar al registrador
+    if (estadoNuevo === 'Rechazada' && estadoAnterior !== 'Rechazada') {
+      const htmlRechazada = buildAcrRechazadaHtml({
+        consecutivo: currentRegistro.consecutivo,
+        proceso: currentRegistro.proceso ?? '',
+        cliente: currentRegistro.cliente ?? '',
+        autorizado_por: autorizadoPor ?? currentRegistro.autorizado_por ?? '',
+        estado_autorizacion: 'Rechazada',
+        comentarios: comentariosAutorizacion ?? null,
+        acr_url: `https://acr.solutionsandpayroll.com/dashboard/historial-acr/${id}`,
+      });
+      transporter.sendMail({
+        from: EMAIL_FROM,
+        to: emailRegistrador,
+        subject: `ACR Rechazada - ${currentRegistro.consecutivo}`,
+        html: htmlRechazada,
+      }).catch((e) => console.error('Error enviando notificación de rechazo:', e));
+    }
+
+    // Transición de "Rechazada" a "Pendiente" (solicitud de nueva revisión) → notificar al autorizador
+    if (estadoNuevo === 'Pendiente' && estadoAnterior === 'Rechazada') {
+      const htmlNuevaRevision = buildAcrNuevaRevisionHtml({
+        consecutivo: currentRegistro.consecutivo,
+        proceso: currentRegistro.proceso ?? '',
+        cliente: currentRegistro.cliente ?? '',
+        registrado_por: currentRegistro.registrado_por ?? '',
+        acr_url: `https://acr.solutionsandpayroll.com/dashboard/historial-acr/${id}`,
+      });
+      transporter.sendMail({
+        from: EMAIL_FROM,
+        to: emailAutorizador,
+        subject: `Nueva Revisión de ACR - ${currentRegistro.consecutivo}`,
+        html: htmlNuevaRevision,
+      }).catch((e) => console.error('Error enviando notificación de nueva revisión:', e));
+    }
 
     return NextResponse.json({ success: true });
   } catch (error) {

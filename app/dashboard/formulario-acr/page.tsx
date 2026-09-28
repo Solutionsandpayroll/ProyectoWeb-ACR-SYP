@@ -6,6 +6,9 @@ import EvidenciaUpload from "@/components/EvidenciaUpload";
 import { getCargosForFechaRegistro, getSalarioPorCargo } from "@/lib/cargo-scale";
 import { RESPONSABLES_SEGUIMIENTO } from "@/lib/responsables";
 
+// Lista única y ordenada de nombres para dropdowns
+const REGISTRADORES = [...new Set(RESPONSABLES_SEGUIMIENTO)].sort();
+
 // ─── Salary Table ───────────────────────────────────────────────────────────────
 const CARGO_MANUAL = "Otro/Externo";
 
@@ -98,25 +101,18 @@ const PAISES = [
   "Panamá",
   "Guatemala",
   "Perú",
+  "República Dominicana",
 ];
 
 const CLIENTES_POR_PAIS: Record<string, string[]> = {
   Colombia: [
     "Propias - S&P",
-    "ACT&J CONSULTORES ASOCIADOS SAS","ACTION ADVERTISING AGENCY LLC","ADVANCIO, INC","BETTE BUNA BV","BUBBLE BPM INC",
-    "CLARKE, MODET & CO COLOMBIA LTDA","CLARKET MODET Y CO. PERU SAC","COMPASSION INTERNATIONAL INCORPORATED","CONSORCIO HL - A&D",
-    "CONSORCIO HL-GISAICO","CONSORCIO SK-HL","CORPORACION PUNTO AZUL","DISTRITECH","ECOHL SAS","EDRINGTON","ELEPHANT PROPERTY MANAGEMENT LLC",
-    "EMATYS INTERNATIONAL SA","EPDM COATINGS CORP","EQUUS GLOBAL EXPANSION, LLC","EUROPORTAGE","EVOLUZION TALENT S.A.S",
-    "FLEXIBLE STEEL LACING CO","FUNERARIA PARA MASCOTAS FUNERAVET SAS","GILEAD SCIENCES COLOMBIA SAS","GLOBAL BPO360","GLOBAL CS COLOMBIA SAS",
-    "GLOBAL PROJECTS SERVICES AG","GLOBAL UPSIDE LLC","H L GESTIONES Y CO SA","HEMMERSBACH GMBH & CO. KG","HL INFRAESTRUCTURAS SAS",
-    "HL INGENIEROS SA","HONG KONG YONYOU XINFUSHE CLOUD TECHNOLOGY CO., LIMITED","INVERSIONES DEL BOSQUE SOCIEDAD POR ACCIONES SIMPLIFICADA",
-    "LIVE SYSTEMS TECHNOLOGY SA","MARCO GLOBAL PAYROLL PTE LTD","MARKETING DOCTORS LLC","MINUDOC OÜ","MONICA LONDOÑO BRIGARD",
-    "NAZDAR INK TECHNOLOGIES","NEO SOLUCIONES INFORMATICAS SL","OFICINA TECNICA DE COOPERACION EMBAJADA DE ESPAÑA","ONCEHUB LTD",
-    "ORTHO CLINICAL DIAGNOSTICS  COLOMBIA","PETROBRAS COLOMBIA COMBUSTIBLES SA","PETROBRAS INTERNATIONAL BRASPETRO BV - SUCURSAL COLOMBIA",
-    "POC PHARMA LIMITED","PUNTO MEDICAL DISTRIBUCIONES SAS","REJIMETAL SAS","REMOFIRST INC","RIVERMATE","ROOT CAPITAL INC.",
-    "SAILGLOBAL TECHNOLOGY (HK) LIMITED","SINERWARE S. A. S.","SOLUCIONES AMBIENTALES SOSTENIBLES PUNTO AZUL SAS","SOLUTIONS & PAYROLL PERU",
-    "SOLUTIONS & PAYROLL PERU S.A.C","SOLUTIONS & PAYROLL, SOCIEDAD ANÓNIMA","SOLUTIONS AND PAYROLL CENTROAMERICA SOCIEDAD DE RESPONSABILIDAD LIMITADA",
-    "SOSYO PLUS BİLGİ BİLİŞİM TEKNOLOJİ DANIŞMANLIK HİZ TİC AŞ","SUNSHINE AU PAIR","TPL LOGISTICS SUPPORT SAS","ZAMBON COLOMBIA S.A."
+    "ACT&J CONSULTORES","ACTION","AECID","BETTE BUNA","BUBBLE","CLARKE CO","COMPASSION","DEEL","ELEPHANT","EMATYS","EPDM",
+    "EUROPORTAGE","FLEXCO","FUNERAVET","GILEAD","GLOBAL CS COLOMBIA","GLOBAL EXPANSION","GRUPO HL","GRUPO LONDOÑO",
+    "HEMMERSBACH","INSIDER","INVERSIONES DEL BOSQUE","LEMON","LST LIVE SYSTEMS TECH.","MARCO PAYROLL",
+    "MKD MARKETING DOCTORS","NAZDAR","NEO","OCD ORTHO CLINICAL","ONCEHUB","PECOCO","PIBCOL","POC PHARMA",
+    "PUNTO MEDICAL","REJIMETAL","REMOFIRST","RIVERMATE","ROOT CAPITAL","SAFEGUARD / EDRINGTON","SAILGLOBAL",
+    "SAIPEM","SIFFI","SINERWARE","SUNSHINE","TPL LOGISTICS","YONYOU","ZAMBON"
   ],
   "Costa Rica": [
     "Propias - S&P",
@@ -124,15 +120,19 @@ const CLIENTES_POR_PAIS: Record<string, string[]> = {
   ],
   Guatemala: [
     "Propias - S&P",
-    "GLOBAL EXPANSION","HEMMERSBACH GMBH & CO. KG","Neeyamo Inc","REMOFIRST","SAFEGUARD"
+    "GLOBAL BPO 360","GLOBAL EXPANSION","HEMMERSBACH GMBH & CO. KG","NEEYAMO","REMOFIRST","SAFEGUARD"
   ],
   Panamá: [
     "Propias - S&P",
-    "HEMMERSBACH"
+    "GLOBAL BPO 360","HEMMERSBACH"
   ],
   Perú: [
     "Propias - S&P",
-    "CLARKE, MODET & CO. PERU S.A.C","EUROPORTAGE","HEMMERSBACH GMBH & CO. KG","REMOFIRST INC","REMOTEPASS","RIVERMATE","SG PERÚ","YONYOU"
+    "CLARKE","EUROPORTAGE","GLOBAL BPO 360","HEMMERSBACH GMBH & CO. KG","REMOFIRST INC","REMOTEPASS","RIVERMATE","YONYOU"
+  ],
+  "República Dominicana": [
+    "Propias - S&P",
+    "GLOBAL BPO 360"
   ],
 };
 
@@ -1059,14 +1059,17 @@ export default function FormularioAcrPage() {
                     </div>
                     <div>
                       <label className={labelCls}>Registrado por *</label>
-                      <input
+                      <select
                         className={inputCls}
-                        type="text"
-                        placeholder="Nombre completo de quien registra"
                         value={info.registradoPor}
                         onChange={(e) => setInfoField("registradoPor", e.target.value)}
                         required
-                      />
+                      >
+                        <option value="">Seleccionar...</option>
+                        {REGISTRADORES.map((nombre) => (
+                          <option key={nombre} value={nombre}>{nombre}</option>
+                        ))}
+                      </select>
                     </div>
                   </div>
                 </div>

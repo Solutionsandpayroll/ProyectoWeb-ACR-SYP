@@ -18,6 +18,8 @@ CREATE TABLE IF NOT EXISTS acr_registros (
   autorizado_por VARCHAR(200),
   estado_autorizacion VARCHAR(50),
   fecha_autorizacion DATE,
+  notificar_autorizacion BOOLEAN DEFAULT FALSE,
+  comentarios_autorizacion TEXT,
   created_at TIMESTAMPTZ DEFAULT now(),
   updated_at TIMESTAMPTZ DEFAULT now()
 );

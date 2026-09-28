@@ -8,6 +8,9 @@ import Header from "@/components/Header";
 import { getCargosForFechaRegistro, getSalarioPorCargo } from "@/lib/cargo-scale";
 import { RESPONSABLES_SEGUIMIENTO } from "@/lib/responsables";
 
+// Lista única y ordenada de nombres para dropdowns
+const REGISTRADORES = [...new Set(RESPONSABLES_SEGUIMIENTO)].sort();
+
 // â”€â”€â”€ Salary Table â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const CARGO_MANUAL = "Otro/Externo";
 const calcCostoByRegistroDate = (cargo: string, horas: number, fechaRegistro?: string): number => {
@@ -73,25 +76,18 @@ const PAISES = [
   "Panamá",
   "Guatemala",
   "Perú",
+  "República Dominicana",
 ];
 
 const CLIENTES_POR_PAIS: Record<string, string[]> = {
   Colombia: [
     "Propias - S&P",
-    "ACT&J CONSULTORES ASOCIADOS SAS","ACTION ADVERTISING AGENCY LLC","ADVANCIO, INC","BETTE BUNA BV","BUBBLE BPM INC",
-    "CLARKE, MODET & CO COLOMBIA LTDA","CLARKET MODET Y CO. PERU SAC","COMPASSION INTERNATIONAL INCORPORATED","CONSORCIO HL - A&D",
-    "CONSORCIO HL-GISAICO","CONSORCIO SK-HL","CORPORACION PUNTO AZUL","DISTRITECH","ECOHL SAS","EDRINGTON","ELEPHANT PROPERTY MANAGEMENT LLC",
-    "EMATYS INTERNATIONAL SA","EPDM COATINGS CORP","EQUUS GLOBAL EXPANSION, LLC","EUROPORTAGE","EVOLUZION TALENT S.A.S",
-    "FLEXIBLE STEEL LACING CO","FUNERARIA PARA MASCOTAS FUNERAVET SAS","GILEAD SCIENCES COLOMBIA SAS","GLOBAL BPO360","GLOBAL CS COLOMBIA SAS",
-    "GLOBAL PROJECTS SERVICES AG","GLOBAL UPSIDE LLC","H L GESTIONES Y CO SA","HEMMERSBACH GMBH & CO. KG","HL INFRAESTRUCTURAS SAS",
-    "HL INGENIEROS SA","HONG KONG YONYOU XINFUSHE CLOUD TECHNOLOGY CO., LIMITED","INVERSIONES DEL BOSQUE SOCIEDAD POR ACCIONES SIMPLIFICADA",
-    "LIVE SYSTEMS TECHNOLOGY SA","MARCO GLOBAL PAYROLL PTE LTD","MARKETING DOCTORS LLC","MINUDOC OÜ","MONICA LONDOÑO BRIGARD",
-    "NAZDAR INK TECHNOLOGIES","NEO SOLUCIONES INFORMATICAS SL","OFICINA TECNICA DE COOPERACION EMBAJADA DE ESPAÑA","ONCEHUB LTD",
-    "ORTHO CLINICAL DIAGNOSTICS  COLOMBIA","PETROBRAS COLOMBIA COMBUSTIBLES SA","PETROBRAS INTERNATIONAL BRASPETRO BV - SUCURSAL COLOMBIA",
-    "POC PHARMA LIMITED","PUNTO MEDICAL DISTRIBUCIONES SAS","REJIMETAL SAS","REMOFIRST INC","RIVERMATE","ROOT CAPITAL INC.",
-    "SAILGLOBAL TECHNOLOGY (HK) LIMITED","SINERWARE S. A. S.","SOLUCIONES AMBIENTALES SOSTENIBLES PUNTO AZUL SAS","SOLUTIONS & PAYROLL PERU",
-    "SOLUTIONS & PAYROLL PERU S.A.C","SOLUTIONS & PAYROLL, SOCIEDAD ANÓNIMA","SOLUTIONS AND PAYROLL CENTROAMERICA SOCIEDAD DE RESPONSABILIDAD LIMITADA",
-    "SOSYO PLUS BİLGİ BİLİŞİM TEKNOLOJİ DANIŞMANLIK HİZ TİC AŞ","SUNSHINE AU PAIR","TPL LOGISTICS SUPPORT SAS","ZAMBON COLOMBIA S.A."
+    "ACT&J CONSULTORES","ACTION","AECID","BETTE BUNA","BUBBLE","CLARKE CO","COMPASSION","DEEL","ELEPHANT","EMATYS","EPDM",
+    "EUROPORTAGE","FLEXCO","FUNERAVET","GILEAD","GLOBAL CS COLOMBIA","GLOBAL EXPANSION","GRUPO HL","GRUPO LONDOÑO",
+    "HEMMERSBACH","INSIDER","INVERSIONES DEL BOSQUE","LEMON","LST LIVE SYSTEMS TECH.","MARCO PAYROLL",
+    "MKD MARKETING DOCTORS","NAZDAR","NEO","OCD ORTHO CLINICAL","ONCEHUB","PECOCO","PIBCOL","POC PHARMA",
+    "PUNTO MEDICAL","REJIMETAL","REMOFIRST","RIVERMATE","ROOT CAPITAL","SAFEGUARD / EDRINGTON","SAILGLOBAL",
+    "SAIPEM","SIFFI","SINERWARE","SUNSHINE","TPL LOGISTICS","YONYOU","ZAMBON"
   ],
   "Costa Rica": [
     "Propias - S&P",
@@ -99,15 +95,19 @@ const CLIENTES_POR_PAIS: Record<string, string[]> = {
   ],
   Guatemala: [
     "Propias - S&P",
-    "GLOBAL EXPANSION","HEMMERSBACH GMBH & CO. KG","Neeyamo Inc","REMOFIRST","SAFEGUARD"
+    "GLOBAL BPO 360","GLOBAL EXPANSION","HEMMERSBACH GMBH & CO. KG","NEEYAMO","REMOFIRST","SAFEGUARD"
   ],
   Panamá: [
     "Propias - S&P",
-    "HEMMERSBACH"
+    "GLOBAL BPO 360","HEMMERSBACH"
   ],
   Perú: [
     "Propias - S&P",
-    "CLARKE, MODET & CO. PERU S.A.C","EUROPORTAGE","HEMMERSBACH GMBH & CO. KG","REMOFIRST INC","REMOTEPASS","RIVERMATE","SG PERÚ","YONYOU"
+    "CLARKE","EUROPORTAGE","GLOBAL BPO 360","HEMMERSBACH GMBH & CO. KG","REMOFIRST INC","REMOTEPASS","RIVERMATE","YONYOU"
+  ],
+  "República Dominicana": [
+    "Propias - S&P",
+    "GLOBAL BPO 360"
   ],
 };
 
@@ -161,6 +161,7 @@ interface ApiData {
     autorizado_por: string | null;
     estado_autorizacion: string | null;
     fecha_autorizacion: string | null;
+    comentarios_autorizacion: string | null;
   };
   actividades_correccion: ActCorr[];
   causas: { inmediatas: string[]; raiz: string[] };
@@ -203,6 +204,8 @@ type EditData = {
   autorizadoPor: string;
   estadoAutorizacion: string;
   fechaAutorizacion: string;
+  notificarAutorizacion: boolean;
+  comentariosAutorizacion: string;
   actividadesCorreccion: CorrActEdit[];
   causasInmediatas: string[]; causasRaiz: string[];
   actividadesPlan: PlanActEdit[];
@@ -327,6 +330,8 @@ function initEditData(d: ApiData): EditData {
     autorizadoPor:   reg.autorizado_por ?? "",
     estadoAutorizacion: reg.estado_autorizacion ?? "",
     fechaAutorizacion: toInputDate(reg.fecha_autorizacion),
+    notificarAutorizacion: false,
+    comentariosAutorizacion: reg.comentarios_autorizacion ?? "",
 
     actividadesCorreccion: d.actividades_correccion.length > 0
       ? d.actividades_correccion.map((a) => ({
@@ -886,6 +891,8 @@ export default function AcrDetailPage() {
         autorizadoPor:    editData.autorizadoPor || null,
         estadoAutorizacion: editData.estadoAutorizacion || null,
         fechaAutorizacion: editData.fechaAutorizacion || null,
+        notificarAutorizacion: editData.notificarAutorizacion,
+        comentariosAutorizacion: editData.comentariosAutorizacion || null,
         actividadesCorreccion: editData.actividadesCorreccion
           .filter((a) => a.actividad.trim())
           .map((a) => ({
@@ -1291,7 +1298,12 @@ export default function AcrDetailPage() {
                 </div>
                 <div>
                   <label className={labelCls}>Registrado por</label>
-                  <input value={ed.registradoPor} onChange={(e) => setED({ registradoPor: e.target.value })} placeholder="Nombre completo" className={inputCls} />
+                  <select value={ed.registradoPor} onChange={(e) => setED({ registradoPor: e.target.value })} className={inputCls}>
+                    <option value="">Seleccionar...</option>
+                    {REGISTRADORES.map((nombre) => (
+                      <option key={nombre} value={nombre}>{nombre}</option>
+                    ))}
+                  </select>
                 </div>
                 <div>
                   <label className={labelCls}>Autorizado por</label>
@@ -1309,10 +1321,39 @@ export default function AcrDetailPage() {
                     <option value="Rechazada">Rechazada</option>
                   </select>
                 </div>
+                {ed.estadoAutorizacion === "Rechazada" && (
+                  <div>
+                    <label className={labelCls}>
+                      Motivo del rechazo / Comentarios <span className="text-red-500">*</span>
+                    </label>
+                    <textarea
+                      value={ed.comentariosAutorizacion}
+                      onChange={(e) => setED({ comentariosAutorizacion: e.target.value })}
+                      placeholder="Especifique el motivo del rechazo y las correcciones necesarias..."
+                      rows={3}
+                      className={inputCls + " resize-none"}
+                      required
+                    />
+                  </div>
+                )}
                 <div>
                   <label className={labelCls}>Fecha de autorización</label>
                   <input type="date" value={ed.fechaAutorizacion} onChange={(e) => setED({ fechaAutorizacion: e.target.value })} className={inputCls} />
                 </div>
+                {ed.estadoAutorizacion === "Rechazada" && (
+                  <div className="flex items-end">
+                    <button
+                      type="button"
+                      onClick={() => setED({ estadoAutorizacion: "Pendiente", notificarAutorizacion: true, comentariosAutorizacion: "" })}
+                      className="cursor-pointer inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold bg-amber-100 text-amber-800 border border-amber-300 hover:bg-amber-200 transition"
+                    >
+                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                      </svg>
+                      Solicitar nueva revisión
+                    </button>
+                  </div>
+                )}
                 {ed.fuente === "Salidas no conformes" && (
                   <div className="col-span-2">
                     <label className={labelCls}>Tratamiento</label>
@@ -1337,6 +1378,12 @@ export default function AcrDetailPage() {
                 <Field label={fx("Registrado por", "Registered by")} value={reg.registrado_por ?? undefined} />
                 <Field label={fx("Autorizado por", "Authorized by")} value={reg.autorizado_por ?? undefined} />
                 <Field label={fx("Estado de autorización", "Authorization status")} value={reg.estado_autorizacion ?? undefined} />
+                {reg.estado_autorizacion === "Rechazada" && reg.comentarios_autorizacion && (
+                  <div className="flex flex-col gap-0.5">
+                    <span className="text-[10px] font-semibold uppercase tracking-widest text-red-400">Motivo del rechazo</span>
+                    <span className="text-sm text-red-700 font-medium leading-snug whitespace-pre-wrap bg-red-50 border border-red-200 rounded-lg px-3 py-2">{reg.comentarios_autorizacion}</span>
+                  </div>
+                )}
                 <Field label={fx("Fecha de autorización", "Authorization date")} value={fmtDate(reg.fecha_autorizacion)} />
                 {reg.fuente === "Salidas no conformes" && (
                   <Field label={fx("Tratamiento", "Treatment")} value={tr("tratamiento", reg.tratamiento)} />
