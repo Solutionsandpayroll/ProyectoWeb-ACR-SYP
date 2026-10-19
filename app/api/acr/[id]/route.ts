@@ -4,6 +4,7 @@ import { getRequestSession, isAdminSession } from '@/lib/auth';
 import { transporter, EMAIL_FROM } from '@/lib/email';
 import { buildAcrRechazadaHtml } from '@/lib/email-templates/acr-rechazada';
 import { buildAcrNuevaRevisionHtml } from '@/lib/email-templates/acr-nueva-revision';
+import { buildAcrLeccionAprendidaHtml } from '@/lib/email-templates/acr-leccion-aprendida';
 import { RESPONSABLE_EMAILS } from '@/lib/responsables';
 
 // Mapeo de correos para autorizadores (mismo que en POST)
@@ -429,6 +430,30 @@ export async function PUT(
         subject: `Nueva Revisión de ACR - ${currentRegistro.consecutivo}`,
         html: htmlNuevaRevision,
       }).catch((e) => console.error('Error enviando notificación de nueva revisión:', e));
+    }
+
+    // ── Transición a "Cerrada" → enviar lección aprendida ─────────────────
+    const estadoAnteriorGral = currentRegistro.estado ?? 'Abierta';
+    if (nextEstado === 'Cerrada' && estadoAnteriorGral !== 'Cerrada') {
+      // Obtener datos completos para el correo
+      const [causasRaizRows] = await sql`SELECT descripcion FROM causas_raiz WHERE acr_id = ${id} ORDER BY orden`;
+      const [actividadesPlanRows] = await sql`SELECT descripcion FROM actividades_plan WHERE acr_id = ${id} ORDER BY orden`;
+
+      const htmlLeccion = buildAcrLeccionAprendidaHtml({
+        consecutivo: currentRegistro.consecutivo,
+        cliente: currentRegistro.cliente ?? '',
+        proceso: currentRegistro.proceso ?? '',
+        descripcion: currentRegistro.descripcion ?? '',
+        causasRaiz: causasRaizRows.map((r: Record<string, unknown>) => r.descripcion as string),
+        planAccion: actividadesPlanRows.map((r: Record<string, unknown>) => r.descripcion as string),
+        acr_url: `https://acr.solutionsandpayroll.com/dashboard/historial-acr/${id}`,
+      });
+      transporter.sendMail({
+        from: EMAIL_FROM,
+        to: TEST_EMAIL,
+        subject: `LECCION APRENDIDA ACR ${currentRegistro.consecutivo}`,
+        html: htmlLeccion,
+      }).catch((e) => console.error('Error enviando lección aprendida:', e));
     }
 
     return NextResponse.json({ success: true });

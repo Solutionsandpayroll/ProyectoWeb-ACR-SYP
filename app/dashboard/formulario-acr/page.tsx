@@ -378,7 +378,7 @@ export default function FormularioAcrPage() {
   // ── Section 3 ──
   const [causasAnalisis, setCausasAnalisis] = useState("");
   const [causasInmediatas, setCausasInmediatas] = useState<string[]>(["Causa inmediata 1...", "Causa inmediata 2..."]);
-  const [causasRaiz, setCausasRaiz] = useState<string[]>(["Causa raíz 1...", "Causa raíz 2..."]);
+  const [causasRaiz, setCausasRaiz] = useState<string[]>(["Causa raíz 1..."]);
   const [aiLoading, setAiLoading] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
   const [show5Porques, setShow5Porques] = useState(false);
@@ -469,7 +469,6 @@ export default function FormularioAcrPage() {
     ]);
     setCausasRaiz([
       "Inexistencia de mecanismos de trazabilidad y responsables formales.",
-      "Cultura organizacional que no vincula errores procedimentales con correctivos.",
     ]);
 
     setPlanActs([{
@@ -585,7 +584,7 @@ export default function FormularioAcrPage() {
     setCorreccionActs([newActividadCorreccion(), newActividadCorreccion(), newActividadCorreccion()]);
     setCausasAnalisis('');
     setCausasInmediatas(['', '']);
-    setCausasRaiz(['', '']);
+    setCausasRaiz(['']);
     setPlanActs([newActividadPlan()]);
     setCostos({ perdidaIngresos: '', multasSanciones: '', otrosCostosInternos: '', descuentosCliente: '', otrosCostos: '' });
   };
@@ -1510,53 +1509,23 @@ export default function FormularioAcrPage() {
                 <div>
                   <div className="flex items-center justify-between mb-2">
                     <label className={labelCls}>
-                      Causas Raíz{" "}
-                      <span className="font-normal text-slate-400">(máx. 5)</span>
+                      Causa Raíz{" "}
+                      <span className="font-normal text-slate-400">(1 sola causa)</span>
                     </label>
-                    <div className="flex gap-3">
-                      {causasRaiz.length < 5 && (
-                        <button
-                          type="button"
-                          onClick={() => setCausasRaiz((p) => [...p, ""])}
-                          className="cursor-pointer text-xs font-medium text-blue-600 hover:text-blue-800"
-                        >
-                          + Agregar
-                        </button>
-                      )}
-                      {causasRaiz.length > 1 && (
-                        <button
-                          type="button"
-                          onClick={() => setCausasRaiz((p) => p.slice(0, -1))}
-                          className="cursor-pointer text-xs font-medium text-red-500 hover:text-red-700"
-                        >
-                          − Quitar
-                        </button>
-                      )}
-                    </div>
                   </div>
-                  <div
-                    style={{
-                      display: "grid",
-                      gap: "0.75rem",
-                      gridTemplateColumns: `repeat(${Math.min(causasRaiz.length, 3)}, minmax(0, 1fr))`,
-                    }}
-                  >
-                    {causasRaiz.map((c, i) => (
-                      <div key={i}>
-                        <label className={labelCls}>CR {i + 1}</label>
-                        <textarea
-                          className={inputCls + " resize-none"}
-                          rows={3}
-                          placeholder={`Causa raíz ${i + 1}...`}
-                          value={c}
-                          onChange={(e) =>
-                            setCausasRaiz((p) =>
-                              p.map((v, j) => (j === i ? e.target.value : v))
-                            )
-                          }
-                        />
-                      </div>
-                    ))}
+                  <div>
+                    <div>
+                      <label className={labelCls}>CR 1</label>
+                      <textarea
+                        className={inputCls + " resize-none"}
+                        rows={4}
+                        placeholder="Causa raíz..."
+                        value={causasRaiz[0]}
+                        onChange={(e) =>
+                          setCausasRaiz((p) => [e.target.value])
+                        }
+                      />
+                    </div>
                   </div>
                 </div>
               </div>
