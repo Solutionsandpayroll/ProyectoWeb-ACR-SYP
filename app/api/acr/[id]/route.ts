@@ -177,7 +177,7 @@ export async function PUT(
     } = body;
 
     const [currentRegistro] = await sql`
-      SELECT estado, fecha_cierre, responsable_cierre, estado_autorizacion, autorizado_por, registrado_por, cliente, proceso, consecutivo
+      SELECT estado, fecha_cierre, responsable_cierre, estado_autorizacion, autorizado_por, registrado_por, cliente, proceso, consecutivo, descripcion
       FROM acr_registros
       WHERE id = ${id}
     `;
@@ -436,14 +436,14 @@ export async function PUT(
     const estadoAnteriorGral = currentRegistro.estado ?? 'Abierta';
     if (nextEstado === 'Cerrada' && estadoAnteriorGral !== 'Cerrada') {
       // Obtener datos completos para el correo
-      const [causasRaizRows] = await sql`SELECT descripcion FROM causas_raiz WHERE acr_id = ${id} ORDER BY orden`;
-      const [actividadesPlanRows] = await sql`SELECT descripcion FROM actividades_plan WHERE acr_id = ${id} ORDER BY orden`;
+      const causasRaizRows = await sql`SELECT descripcion FROM causas_raiz WHERE acr_id = ${id} ORDER BY orden`;
+      const actividadesPlanRows = await sql`SELECT descripcion FROM actividades_plan WHERE acr_id = ${id} ORDER BY orden`;
 
       const htmlLeccion = buildAcrLeccionAprendidaHtml({
         consecutivo: currentRegistro.consecutivo,
         cliente: currentRegistro.cliente ?? '',
         proceso: currentRegistro.proceso ?? '',
-        descripcion: currentRegistro.descripcion ?? '',
+        descripcion: descripcion ?? currentRegistro.descripcion ?? '',
         causasRaiz: causasRaizRows.map((r: Record<string, unknown>) => r.descripcion as string),
         planAccion: actividadesPlanRows.map((r: Record<string, unknown>) => r.descripcion as string),
         acr_url: `https://acr.solutionsandpayroll.com/dashboard/historial-acr/${id}`,
