@@ -17,6 +17,9 @@ const AUTORIZADOR_EMAILS: Record<string, string> = {
 // Correo de pruebas para notificaciones de rechazo y nueva revisión
 const TEST_EMAIL = 'automatizacion2@solutionsandpayroll.com';
 
+// Correo destinatario de la notificación de lección aprendida (ACR cerrada)
+const LECCION_APRENDIDA_EMAIL = 'ipineda@solutionsandpayroll.com';
+
 const toSafeNumber = (value: unknown): number => {
   if (typeof value === 'number') return Number.isFinite(value) ? value : 0;
   if (typeof value === 'string') {
@@ -450,7 +453,7 @@ export async function PUT(
       });
       transporter.sendMail({
         from: EMAIL_FROM,
-        to: TEST_EMAIL,
+        to: LECCION_APRENDIDA_EMAIL,
         subject: `LECCION APRENDIDA ACR ${currentRegistro.consecutivo}`,
         html: htmlLeccion,
       }).catch((e) => console.error('Error enviando lección aprendida:', e));
