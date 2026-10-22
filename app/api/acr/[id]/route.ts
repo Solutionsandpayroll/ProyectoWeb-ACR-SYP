@@ -18,7 +18,7 @@ const AUTORIZADOR_EMAILS: Record<string, string> = {
 const TEST_EMAIL = 'automatizacion2@solutionsandpayroll.com';
 
 // Correo destinatario de la notificación de lección aprendida (ACR cerrada)
-const LECCION_APRENDIDA_EMAIL = 'ipineda@solutionsandpayroll.com';
+const LECCION_APRENDIDA_EMAIL = 'allcompany@solutionsandpayroll.com';
 
 const toSafeNumber = (value: unknown): number => {
   if (typeof value === 'number') return Number.isFinite(value) ? value : 0;
